@@ -1,0 +1,2 @@
+# InsightAI
+Notes Taking App

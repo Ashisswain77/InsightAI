@@ -6,6 +6,7 @@ require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
 
 const authRoutes = require("./routes/auth");
 const notesRoutes = require("./routes/notes");
+const lockerRoutes = require("./routes/locker");
 
 const app = express();
 
@@ -16,6 +17,7 @@ app.use(express.json({ limit: "10mb" }));
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/notes", notesRoutes);
+app.use("/api/locker", lockerRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {

@@ -24,6 +24,7 @@ export default function Navbar() {
   const isNotesActive = window.location.pathname === "/dashboard";
   const isArchivedActive = window.location.pathname === "/archived";
   const isBinActive = window.location.pathname === "/bin";
+  const isLockerActive = window.location.pathname === "/locker";
 
   return (
     <AppBar
@@ -133,6 +134,28 @@ export default function Navbar() {
               }}
             >
               Archived
+            </Button>
+            <Button
+              onClick={() => navigate("/locker")}
+              sx={{
+                color: isLockerActive ? "primary.main" : "text.secondary",
+                fontWeight: 700,
+                fontSize: "0.92rem",
+                textTransform: "none",
+                borderRadius: "20px",
+                px: 2.5,
+                py: 0.6,
+                border: "1px solid",
+                borderColor: isLockerActive ? "rgba(99, 102, 241, 0.25)" : "transparent",
+                bgcolor: isLockerActive ? "rgba(99, 102, 241, 0.08)" : "transparent",
+                "&:hover": {
+                  color: "text.primary",
+                  bgcolor: (theme) => theme.palette.action.hover,
+                },
+                transition: "all 0.2s ease",
+              }}
+            >
+              Locker
             </Button>
             <Button
               onClick={() => navigate("/bin")}

@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import NoteDetail from "./pages/NoteDetail";
 import Archived from "./pages/Archived";
 import Bin from "./pages/Bin";
+import Locker from "./pages/Locker";
 
 export default function App() {
   return (
@@ -41,6 +42,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <Bin />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/locker"
+              element={
+                <ProtectedRoute>
+                  <Locker />
                 </ProtectedRoute>
               }
             />

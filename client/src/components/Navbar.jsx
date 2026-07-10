@@ -36,7 +36,6 @@ export default function Navbar() {
             alignItems: "center",
             gap: 1,
             cursor: "pointer",
-            mr: "auto",
           }}
           onClick={() => navigate("/dashboard")}
         >
@@ -67,6 +66,44 @@ export default function Navbar() {
             Insights
           </Typography>
         </Box>
+
+        {/* Navigation Links */}
+        {isAuthenticated && (
+          <Box sx={{ display: "flex", gap: 1.5, mr: "auto", ml: { xs: 2, md: 4 } }}>
+            <Button
+              onClick={() => navigate("/dashboard")}
+              sx={{
+                color: "text.primary",
+                fontWeight: 600,
+                fontSize: "0.95rem",
+                textTransform: "none",
+                borderRadius: 2,
+                px: 2,
+                "&:hover": {
+                  background: (theme) => theme.palette.action.hover,
+                },
+              }}
+            >
+              Notes
+            </Button>
+            <Button
+              onClick={() => navigate("/archived")}
+              sx={{
+                color: "text.primary",
+                fontWeight: 600,
+                fontSize: "0.95rem",
+                textTransform: "none",
+                borderRadius: 2,
+                px: 2,
+                "&:hover": {
+                  background: (theme) => theme.palette.action.hover,
+                },
+              }}
+            >
+              Archived
+            </Button>
+          </Box>
+        )}
 
         {/* Theme Toggle */}
         <ThemeToggle />

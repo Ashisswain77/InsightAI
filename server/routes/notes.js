@@ -55,6 +55,7 @@ router.get("/search", searchLimiter, async (req, res) => {
     // Step 2: Fetch all user notes that have embeddings
     const notes = await Note.find({
       userId: req.user.id,
+      isArchived: { $ne: true },
       embedding: { $exists: true, $not: { $size: 0 } },
     }).select("title content summary tags embedding createdAt updatedAt");
 
@@ -75,10 +76,10 @@ router.get("/search", searchLimiter, async (req, res) => {
   }
 });
 
-// GET /api/notes — Fetch all notes for the logged-in user
+// GET /api/notes — Fetch all non-archived notes for the logged-in user
 router.get("/", async (req, res) => {
   try {
-    const notes = await Note.find({ userId: req.user.id })
+    const notes = await Note.find({ userId: req.user.id, isArchived: { $ne: true } })
       .select("-embedding")
       .sort({ updatedAt: -1 });
 
@@ -86,6 +87,20 @@ router.get("/", async (req, res) => {
   } catch (err) {
     console.error("Fetch notes error:", err.message);
     res.status(500).json({ message: "Failed to fetch notes" });
+  }
+});
+
+// GET /api/notes/archived — Fetch all archived notes for the logged-in user
+router.get("/archived", async (req, res) => {
+  try {
+    const notes = await Note.find({ userId: req.user.id, isArchived: true })
+      .select("-embedding")
+      .sort({ updatedAt: -1 });
+
+    res.json(notes);
+  } catch (err) {
+    console.error("Fetch archived notes error:", err.message);
+    res.status(500).json({ message: "Failed to fetch archived notes" });
   }
 });
 
@@ -150,8 +165,10 @@ router.put("/:id", async (req, res) => {
       return res.status(404).json({ message: "Note not found" });
     }
 
-    if (title) note.title = title.trim();
-    if (content) note.content = content;
+    const contentChanged = content !== undefined && content !== note.content;
+    if (title !== undefined) note.title = title.trim();
+    if (content !== undefined) note.content = content;
+    if (req.body.isArchived !== undefined) note.isArchived = req.body.isArchived;
     note.updatedAt = new Date();
 
     await note.save();
@@ -162,8 +179,10 @@ router.put("/:id", async (req, res) => {
 
     res.json(responseNote);
 
-    // Re-trigger AI processing in background
-    processNoteInsights(note._id);
+    // Re-trigger AI processing in background only if content changed
+    if (contentChanged) {
+      processNoteInsights(note._id);
+    }
   } catch (err) {
     console.error("Update note error:", err.message);
     res.status(500).json({ message: "Failed to update note" });

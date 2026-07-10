@@ -6,6 +6,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import NoteDetail from "./pages/NoteDetail";
+import Archived from "./pages/Archived";
 
 export default function App() {
   return (
@@ -23,6 +24,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/archived"
+              element={
+                <ProtectedRoute>
+                  <Archived />
                 </ProtectedRoute>
               }
             />

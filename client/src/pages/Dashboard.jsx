@@ -133,6 +133,29 @@ export default function Dashboard() {
     }
   };
 
+  // Archive/Unarchive note
+  const handleArchive = async (id, toArchive) => {
+    try {
+      await api.put(`/notes/${id}`, { isArchived: toArchive });
+      // Remove it from the dashboard notes list
+      setNotes((prev) => prev.filter((n) => n._id !== id));
+      if (searchResults) {
+        setSearchResults((prev) => prev.filter((n) => n._id !== id));
+      }
+      setSnackbar({
+        open: true,
+        message: toArchive ? "Note archived successfully!" : "Note unarchived successfully!",
+        severity: "success",
+      });
+    } catch (err) {
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.message || "Failed to archive note",
+        severity: "error",
+      });
+    }
+  };
+
   const displayNotes = searchResults !== null ? searchResults : notes;
   const isSearchMode = searchResults !== null;
 
@@ -315,6 +338,7 @@ export default function Dashboard() {
                     onClick={() => navigate(`/notes/${note._id}`)}
                     onEdit={handleEdit}
                     onDelete={handleDelete}
+                    onArchive={handleArchive}
                   />
                 </Box>
               </Grid>

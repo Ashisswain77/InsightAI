@@ -1,8 +1,8 @@
 import { Card, CardContent, CardActionArea, CardActions, Button, Typography, Box, Chip } from "@mui/material";
-import { AccessTime, AutoAwesome, Edit, Delete } from "@mui/icons-material";
+import { AccessTime, AutoAwesome, Edit, Delete, Archive, Unarchive } from "@mui/icons-material";
 import TagBadge from "./TagBadge";
 
-export default function NoteCard({ note, onClick, onEdit, onDelete }) {
+export default function NoteCard({ note, onClick, onEdit, onDelete, onArchive }) {
   const preview = note.summary || note.content?.substring(0, 180) + (note.content?.length > 180 ? "..." : "");
   const hasAI = !!(note.summary && note.tags?.length > 0);
   const dateStr = new Date(note.updatedAt || note.createdAt).toLocaleDateString("en-US", {
@@ -157,10 +157,10 @@ export default function NoteCard({ note, onClick, onEdit, onDelete }) {
       {/* Action Buttons below the content */}
       <CardActions
         sx={{
-          px: 3,
-          pb: 3,
+          px: 2,
+          pb: 2.5,
           pt: 1.5,
-          gap: 2,
+          gap: 1,
           display: "flex",
           justifyContent: "space-between",
           borderTop: (theme) => `1px solid ${theme.palette.divider}`,
@@ -170,7 +170,7 @@ export default function NoteCard({ note, onClick, onEdit, onDelete }) {
           size="small"
           variant="outlined"
           color="primary"
-          startIcon={<Edit sx={{ fontSize: 16 }} />}
+          startIcon={<Edit sx={{ fontSize: 14 }} />}
           onClick={(e) => {
             e.stopPropagation();
             if (onEdit) onEdit(note._id);
@@ -178,9 +178,10 @@ export default function NoteCard({ note, onClick, onEdit, onDelete }) {
           sx={{
             flex: 1,
             py: 0.75,
+            px: 1,
             borderRadius: 2,
             fontWeight: 600,
-            fontSize: "0.85rem",
+            fontSize: "0.82rem",
             textTransform: "none",
           }}
         >
@@ -189,8 +190,29 @@ export default function NoteCard({ note, onClick, onEdit, onDelete }) {
         <Button
           size="small"
           variant="outlined"
+          color="warning"
+          startIcon={note.isArchived ? <Unarchive sx={{ fontSize: 14 }} /> : <Archive sx={{ fontSize: 14 }} />}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (onArchive) onArchive(note._id, !note.isArchived);
+          }}
+          sx={{
+            flex: 1.3,
+            py: 0.75,
+            px: 1,
+            borderRadius: 2,
+            fontWeight: 600,
+            fontSize: "0.82rem",
+            textTransform: "none",
+          }}
+        >
+          {note.isArchived ? "Unarchive" : "Archive"}
+        </Button>
+        <Button
+          size="small"
+          variant="outlined"
           color="error"
-          startIcon={<Delete sx={{ fontSize: 16 }} />}
+          startIcon={<Delete sx={{ fontSize: 14 }} />}
           onClick={(e) => {
             e.stopPropagation();
             if (onDelete) onDelete(note._id, e);
@@ -198,9 +220,10 @@ export default function NoteCard({ note, onClick, onEdit, onDelete }) {
           sx={{
             flex: 1,
             py: 0.75,
+            px: 1,
             borderRadius: 2,
             fontWeight: 600,
-            fontSize: "0.85rem",
+            fontSize: "0.82rem",
             textTransform: "none",
           }}
         >

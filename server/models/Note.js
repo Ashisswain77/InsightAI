@@ -36,6 +36,11 @@ const noteSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  isArchived: {
+    type: Boolean,
+    default: false,
+    index: true,
+  },
 });
 
 // Update the updatedAt field before saving

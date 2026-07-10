@@ -109,25 +109,24 @@ export default function Dashboard() {
     navigate(`/notes/${id}`);
   };
 
-  // Delete note
+  // Move note to Bin
   const handleDelete = async (id, e) => {
     e.stopPropagation();
-    if (!window.confirm("Are you sure you want to delete this note?")) return;
     try {
-      await api.delete(`/notes/${id}`);
+      await api.put(`/notes/${id}`, { isBinned: true });
       setNotes((prev) => prev.filter((n) => n._id !== id));
       if (searchResults) {
         setSearchResults((prev) => prev.filter((n) => n._id !== id));
       }
       setSnackbar({
         open: true,
-        message: "Note deleted successfully!",
+        message: "Note moved to Bin!",
         severity: "success",
       });
     } catch (err) {
       setSnackbar({
         open: true,
-        message: err.response?.data?.message || "Failed to delete note",
+        message: err.response?.data?.message || "Failed to move note to Bin",
         severity: "error",
       });
     }
@@ -172,83 +171,119 @@ export default function Dashboard() {
         className="animate-fade-in"
         sx={{ maxWidth: 1200, mx: "auto", px: { xs: 2, md: 4 }, py: 4 }}
       >
-        {/* Header */}
-        <Box sx={{ mb: 4 }}>
-          <Typography
-            variant="h4"
-            sx={{
-              fontWeight: 700,
-              mb: 0.5,
-              background: (theme) =>
-                theme.palette.mode === "dark"
-                  ? "linear-gradient(135deg, #f1f5f9, #cbd5e1)"
-                  : "linear-gradient(135deg, #0f172a, #334155)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-            }}
-          >
-            My Notes
-          </Typography>
-          <Typography variant="body2" sx={{ color: "text.secondary" }}>
-            {notes.length} note{notes.length !== 1 ? "s" : ""} — powered by AI
-          </Typography>
-        </Box>
+        {/* Premium Dashboard Header Dock */}
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: { xs: "column", md: "row" },
+            alignItems: { xs: "stretch", md: "center" },
+            justifyContent: "space-between",
+            gap: 3,
+            mb: 5,
+            p: 3,
+            borderRadius: 4,
+            background: (theme) =>
+              theme.palette.mode === "dark"
+                ? "rgba(30, 41, 59, 0.4)"
+                : "rgba(255, 255, 255, 0.75)",
+            backdropFilter: "blur(12px)",
+            border: "1px solid",
+            borderColor: (theme) =>
+              theme.palette.mode === "dark"
+                ? "rgba(148, 163, 184, 0.12)"
+                : "rgba(15, 23, 42, 0.08)",
+            boxShadow: (theme) =>
+              theme.palette.mode === "dark"
+                ? "0 8px 32px rgba(0,0,0,0.15)"
+                : "0 8px 32px rgba(0,0,0,0.02)",
+          }}
+        >
+          {/* Title and stats */}
+          <Box>
+            <Typography
+              variant="h4"
+              sx={{
+                fontWeight: 800,
+                fontFamily: '"Archivo Black", sans-serif',
+                letterSpacing: "-0.02em",
+                background: "linear-gradient(135deg, #6366f1, #a855f7)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                mb: 0.5,
+              }}
+            >
+              My Insights
+            </Typography>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography variant="body2" sx={{ color: "text.secondary", fontWeight: 550 }}>
+                {notes.length} active note{notes.length !== 1 ? "s" : ""}
+              </Typography>
+              <Typography variant="caption" sx={{ color: "divider", fontWeight: 900 }}>
+                •
+              </Typography>
+              <Typography variant="body2" sx={{ color: "text.secondary", fontWeight: 550 }}>
+                Workspace Dashboard
+              </Typography>
+            </Box>
+          </Box>
 
-        {/* Create Note Bar */}
-        <Box sx={{ mb: 4 }}>
+          {/* Interactive Create Note Bar */}
           <Box
             onClick={() => setCreateOpen(true)}
             sx={{
               display: "flex",
               alignItems: "center",
               gap: 2,
-              p: 2.2,
-              borderRadius: 3,
+              px: 3,
+              py: 1.8,
+              borderRadius: 3.5,
               cursor: "pointer",
-              background: (theme) =>
+              bgcolor: (theme) =>
                 theme.palette.mode === "dark"
-                  ? "rgba(30, 41, 59, 0.6)"
-                  : "rgba(255, 255, 255, 0.8)",
-              backdropFilter: "blur(8px)",
+                  ? "rgba(15, 23, 42, 0.4)"
+                  : "rgba(255, 255, 255, 0.9)",
               border: "1px solid",
-              borderColor: (theme) =>
+              borderColor: "divider",
+              width: { xs: "100%", md: "480px" },
+              boxShadow: (theme) =>
                 theme.palette.mode === "dark"
-                  ? "rgba(148, 163, 184, 0.15)"
-                  : "rgba(15, 23, 42, 0.1)",
-              transition: "all 0.3s ease",
+                  ? "inset 0 2px 4px rgba(0,0,0,0.2)"
+                  : "inset 0 1px 2px rgba(0,0,0,0.05)",
+              transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
               "&:hover": {
-                borderColor: "primary.main",
+                borderColor: "primary.light",
+                transform: "translateY(-1px)",
                 boxShadow: (theme) =>
                   theme.palette.mode === "dark"
-                    ? "0 0 0 3px rgba(129, 140, 248, 0.15)"
-                    : "0 0 0 3px rgba(79, 70, 229, 0.1)",
+                    ? "0 4px 20px rgba(99, 102, 241, 0.15), 0 0 0 1px rgba(99, 102, 241, 0.2)"
+                    : "0 4px 20px rgba(79, 70, 229, 0.08), 0 0 0 1px rgba(79, 70, 229, 0.15)",
               },
             }}
           >
             <Box
               sx={{
-                width: 36,
-                height: 36,
-                borderRadius: "10px",
+                width: 32,
+                height: 32,
+                borderRadius: "50%",
                 background: "linear-gradient(135deg, #6366f1, #a855f7)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                boxShadow: "0 4px 12px rgba(99, 102, 241, 0.25)",
+                boxShadow: "0 2px 8px rgba(99, 102, 241, 0.3)",
               }}
             >
-              <Add sx={{ color: "#fff", fontSize: 20 }} />
+              <Add sx={{ color: "#fff", fontSize: 18 }} />
             </Box>
             <Typography
               variant="body1"
               sx={{
                 color: "text.secondary",
-                fontSize: "1.05rem",
+                fontSize: "0.95rem",
                 fontWeight: 500,
                 userSelect: "none",
               }}
             >
-              Take a note or create new Insights...
+              Take a note or write a new Insight...
             </Typography>
           </Box>
         </Box>
@@ -307,19 +342,16 @@ export default function Dashboard() {
             )}
           </Box>
         ) : (
-          <Grid container spacing={3}>
+          <Box className="masonry-grid">
             {displayNotes.map((note, idx) => (
-              <Grid
-                item
-                xs={12}
-                sm={6}
-                md={4}
+              <Box
                 key={note._id}
+                className="masonry-item"
                 sx={{
                   animation: `fadeInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) ${idx * 0.06}s both`,
                 }}
               >
-                <Box sx={{ position: "relative" }}>
+                <Box sx={{ position: "relative", width: "100%" }}>
                   {isSearchMode && note.score !== undefined && (
                     <Box
                       className="score-badge"
@@ -341,9 +373,9 @@ export default function Dashboard() {
                     onArchive={handleArchive}
                   />
                 </Box>
-              </Grid>
+              </Box>
             ))}
-          </Grid>
+          </Box>
         )}
       </Box>
 
@@ -354,25 +386,83 @@ export default function Dashboard() {
         onClose={() => setCreateOpen(false)}
         maxWidth="sm"
         fullWidth
+        BackdropProps={{
+          sx: {
+            backdropFilter: "blur(6px)",
+            backgroundColor: (theme) =>
+              theme.palette.mode === "dark"
+                ? "rgba(15, 23, 42, 0.5)"
+                : "rgba(15, 23, 42, 0.3)",
+          },
+        }}
         PaperProps={{
           sx: {
-            borderRadius: 3,
-            backdropFilter: "blur(20px)",
+            borderRadius: 4,
+            background: (theme) =>
+              theme.palette.mode === "dark"
+                ? "rgba(30, 41, 59, 0.75)"
+                : "rgba(255, 255, 255, 0.85)",
+            backdropFilter: "blur(25px)",
+            border: "1px solid",
+            borderColor: (theme) =>
+              theme.palette.mode === "dark"
+                ? "rgba(148, 163, 184, 0.12)"
+                : "rgba(15, 23, 42, 0.08)",
+            boxShadow: (theme) =>
+              theme.palette.mode === "dark"
+                ? "0 24px 64px rgba(0,0,0,0.5)"
+                : "0 24px 64px rgba(0,0,0,0.08)",
+            overflow: "hidden",
+            position: "relative",
+            "&::before": {
+              content: '""',
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              height: "4px",
+              background: "linear-gradient(90deg, #6366f1, #a855f7, #06b6d4)",
+            },
           },
         }}
       >
-        <DialogTitle sx={{ fontWeight: 600, pb: 1 }}>Create New Note</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" sx={{ color: "text.secondary", mb: 2.5 }}>
-            AI will automatically generate a summary, tags, and search embeddings.
-          </Typography>
+        <DialogTitle
+          sx={{
+            fontWeight: 850,
+            fontFamily: '"Archivo Black", sans-serif',
+            fontSize: "1.35rem",
+            letterSpacing: "0.01em",
+            pt: 4,
+            pb: 1,
+          }}
+        >
+          Create New Note
+        </DialogTitle>
+        <DialogContent sx={{ pt: 1.5 }}>
           <TextField
             fullWidth
             id="new-note-title"
             label="Title"
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
-            sx={{ mb: 2.5 }}
+            sx={{
+              mb: 3,
+              "& .MuiOutlinedInput-root": {
+                borderRadius: 3,
+                bgcolor: (theme) =>
+                  theme.palette.mode === "dark"
+                    ? "rgba(15, 23, 42, 0.25)"
+                    : "rgba(0, 0, 0, 0.015)",
+                transition: "all 0.3s ease",
+                "& fieldset": { borderColor: "divider" },
+                "&:hover fieldset": { borderColor: "text.secondary" },
+                "&.Mui-focused fieldset": { borderColor: "primary.light" },
+              },
+              "& .MuiInputLabel-root": {
+                fontWeight: 550,
+                "&.Mui-focused": { color: "primary.light" },
+              },
+            }}
             autoFocus
           />
           <TextField
@@ -384,10 +474,46 @@ export default function Dashboard() {
             multiline
             rows={6}
             placeholder="Write your note content here..."
+            sx={{
+              "& .MuiOutlinedInput-root": {
+                borderRadius: 3,
+                bgcolor: (theme) =>
+                  theme.palette.mode === "dark"
+                    ? "rgba(15, 23, 42, 0.25)"
+                    : "rgba(0, 0, 0, 0.015)",
+                transition: "all 0.3s ease",
+                "& fieldset": { borderColor: "divider" },
+                "&:hover fieldset": { borderColor: "text.secondary" },
+                "&.Mui-focused fieldset": { borderColor: "primary.light" },
+              },
+              "& .MuiInputLabel-root": {
+                fontWeight: 550,
+                "&.Mui-focused": { color: "primary.light" },
+              },
+            }}
           />
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button onClick={() => setCreateOpen(false)} sx={{ color: "text.secondary" }}>
+        <DialogActions sx={{ px: 3, pb: 4, pt: 2, gap: 1.5 }}>
+          <Button
+            onClick={() => setCreateOpen(false)}
+            variant="outlined"
+            sx={{
+              borderRadius: 2.5,
+              textTransform: "none",
+              fontWeight: 700,
+              px: 3,
+              py: 1,
+              fontSize: "0.88rem",
+              borderColor: "divider",
+              color: "text.secondary",
+              "&:hover": {
+                bgcolor: "action.hover",
+                borderColor: "text.primary",
+                color: "text.primary",
+              },
+              transition: "all 0.2s ease",
+            }}
+          >
             Cancel
           </Button>
           <Button
@@ -397,10 +523,18 @@ export default function Dashboard() {
             disabled={creating || !newTitle.trim() || !newContent.trim()}
             startIcon={creating ? null : <NoteAdd />}
             sx={{
+              borderRadius: 2.5,
+              textTransform: "none",
+              fontWeight: 700,
+              px: 3,
+              py: 1,
+              fontSize: "0.88rem",
               background: "linear-gradient(135deg, #6366f1, #a855f7)",
+              boxShadow: "0 4px 14px rgba(99, 102, 241, 0.3)",
               "&:hover": {
                 background: "linear-gradient(135deg, #4f46e5, #9333ea)",
               },
+              transition: "all 0.3s ease",
             }}
           >
             {creating ? "Creating..." : "Create Note"}

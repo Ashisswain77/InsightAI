@@ -7,6 +7,7 @@ import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import NoteDetail from "./pages/NoteDetail";
 import Archived from "./pages/Archived";
+import Bin from "./pages/Bin";
 
 export default function App() {
   return (
@@ -32,6 +33,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <Archived />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/bin"
+              element={
+                <ProtectedRoute>
+                  <Bin />
                 </ProtectedRoute>
               }
             />

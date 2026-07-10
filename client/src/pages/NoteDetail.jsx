@@ -73,6 +73,7 @@ export default function NoteDetail() {
 
   // Save note
   const handleSave = async () => {
+    if (!hasChanges) return;
     if (!title.trim() || !content.trim()) return;
     setSaving(true);
 
@@ -99,16 +100,16 @@ export default function NoteDetail() {
     }
   };
 
-  // Delete note
+  // Move note to Bin
   const handleDelete = async () => {
     setDeleting(true);
     try {
-      await api.delete(`/notes/${id}`);
+      await api.put(`/notes/${id}`, { isBinned: true });
       navigate("/dashboard");
     } catch (err) {
       setSnackbar({
         open: true,
-        message: "Failed to delete note",
+        message: "Failed to move note to Bin",
         severity: "error",
       });
     } finally {
@@ -152,47 +153,92 @@ export default function NoteDetail() {
         className="animate-fade-in"
         sx={{ maxWidth: 950, mx: "auto", px: { xs: 2, md: 4 }, py: 4 }}
       >
-        {/* Top bar */}
+        {/* Premium Control Dock (Top Bar) */}
         <Box
           sx={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
+            py: 2,
+            px: { xs: 3, md: 4 },
+            borderRadius: 4,
+            background: (theme) =>
+              theme.palette.mode === "dark"
+                ? "rgba(30, 41, 59, 0.4)"
+                : "rgba(255, 255, 255, 0.75)",
+            backdropFilter: "blur(12px)",
+            border: "1px solid",
+            borderColor: (theme) =>
+              theme.palette.mode === "dark"
+                ? "rgba(148, 163, 184, 0.12)"
+                : "rgba(15, 23, 42, 0.08)",
             mb: 4,
             flexWrap: "wrap",
             gap: 2,
+            boxShadow: (theme) =>
+              theme.palette.mode === "dark"
+                ? "0 8px 32px rgba(0,0,0,0.15)"
+                : "0 8px 32px rgba(0,0,0,0.02)",
           }}
         >
+          {/* Left Actions */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-            <Button
-              id="back-to-dashboard-btn"
-              onClick={() => navigate("/dashboard")}
-              variant="outlined"
-              startIcon={<ArrowBack />}
-              sx={{
-                borderRadius: 2.5,
-                textTransform: "none",
-                fontWeight: 600,
-                color: "text.primary",
-                borderColor: "divider",
-                px: 2.2,
-                py: 0.9,
-                "&:hover": {
-                  bgcolor: "action.hover",
-                  borderColor: "text.secondary",
-                },
-              }}
-            >
-              Back
-            </Button>
+            <Tooltip title="Back to dashboard">
+              <IconButton
+                id="back-to-dashboard-btn"
+                onClick={() => navigate("/dashboard")}
+                sx={{
+                  color: "text.secondary",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  borderRadius: 2.5,
+                  p: 1.1,
+                  "&:hover": {
+                    color: "text.primary",
+                    borderColor: "text.primary",
+                    bgcolor: "action.hover",
+                  },
+                  transition: "all 0.2s ease",
+                }}
+              >
+                <ArrowBack sx={{ fontSize: 20 }} />
+              </IconButton>
+            </Tooltip>
+
             {note && (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, color: "text.secondary" }}>
-                <AccessTime sx={{ fontSize: 16 }} />
-                <Typography variant="caption" sx={{ fontSize: "0.85rem", fontWeight: 500 }}>{dateStr}</Typography>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                  bgcolor: (theme) =>
+                    theme.palette.mode === "dark"
+                      ? "rgba(255, 255, 255, 0.03)"
+                      : "rgba(0, 0, 0, 0.02)",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  px: 2,
+                  py: 0.8,
+                  borderRadius: 3,
+                }}
+              >
+                <AccessTime sx={{ fontSize: 15, color: "primary.light" }} />
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontSize: "0.82rem",
+                    fontWeight: 600,
+                    color: "text.secondary",
+                    letterSpacing: "0.02em",
+                  }}
+                >
+                  Last updated: {dateStr}
+                </Typography>
               </Box>
             )}
           </Box>
 
+          {/* Right Actions */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
             <Tooltip title="Delete note">
               <IconButton
@@ -209,33 +255,36 @@ export default function NoteDetail() {
                     borderColor: "error.main",
                     bgcolor: (theme) =>
                       theme.palette.mode === "dark"
-                        ? "rgba(248,113,113,0.1)"
-                        : "rgba(220,38,38,0.06)",
+                        ? "rgba(248, 113, 113, 0.1)"
+                        : "rgba(220, 38, 38, 0.06)",
                   },
+                  transition: "all 0.2s ease",
                 }}
               >
                 <Delete sx={{ fontSize: 20 }} />
               </IconButton>
             </Tooltip>
+
             <Button
               id="save-note-btn"
               variant={hasChanges ? "contained" : "outlined"}
               color={hasChanges ? "primary" : "success"}
               startIcon={saving ? null : hasChanges ? <Save /> : <Check />}
-              onClick={handleSave}
-              disabled={saving}
+              onClick={hasChanges ? handleSave : undefined}
+              disabled={saving || (hasChanges && (!title.trim() || !content.trim()))}
               sx={{
                 borderRadius: 2.5,
                 textTransform: "none",
-                fontWeight: 600,
+                fontWeight: 700,
                 px: 3,
                 py: 1,
+                fontSize: "0.88rem",
                 borderColor: !hasChanges ? "success.main" : undefined,
                 color: !hasChanges ? "success.main" : "#fff",
                 background: hasChanges
                   ? "linear-gradient(135deg, #6366f1, #a855f7)"
                   : undefined,
-                boxShadow: hasChanges ? "0 4px 14px rgba(99, 102, 241, 0.3)" : undefined,
+                boxShadow: hasChanges ? "0 4px 14px rgba(99, 102, 241, 0.35)" : undefined,
                 "&:hover": {
                   background: hasChanges
                     ? "linear-gradient(135deg, #4f46e5, #9333ea)"
@@ -287,6 +336,7 @@ export default function NoteDetail() {
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Note title..."
               variant="standard"
+              inputProps={{ style: { textAlign: "center" } }}
               InputProps={{
                 disableUnderline: true,
                 sx: {
@@ -357,16 +407,16 @@ export default function NoteDetail() {
         )}
       </Box>
 
-      {/* Delete Dialog */}
+      {/* Delete (Move to Bin) Dialog */}
       <Dialog
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
         PaperProps={{ sx: { borderRadius: 3 } }}
       >
-        <DialogTitle sx={{ fontWeight: 600 }}>Delete Note</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 600 }}>Move to Bin</DialogTitle>
         <DialogContent>
           <Typography variant="body2" sx={{ color: "text.secondary" }}>
-            Are you sure you want to delete this note? This action cannot be undone.
+            Are you sure you want to move this note to the Bin? You can restore it later from the Bin section.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -377,10 +427,10 @@ export default function NoteDetail() {
             id="confirm-delete-btn"
             onClick={handleDelete}
             variant="contained"
-            color="error"
+            color="warning"
             disabled={deleting}
           >
-            {deleting ? "Deleting..." : "Delete"}
+            {deleting ? "Moving..." : "Move to Bin"}
           </Button>
         </DialogActions>
       </Dialog>

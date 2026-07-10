@@ -1,8 +1,8 @@
 import { Card, CardContent, CardActionArea, CardActions, Button, Typography, Box, Chip } from "@mui/material";
-import { AccessTime, AutoAwesome, Edit, Delete, Archive, Unarchive } from "@mui/icons-material";
+import { AccessTime, AutoAwesome, Edit, Delete, Archive, Unarchive, RestoreFromTrash, DeleteForever } from "@mui/icons-material";
 import TagBadge from "./TagBadge";
 
-export default function NoteCard({ note, onClick, onEdit, onDelete, onArchive }) {
+export default function NoteCard({ note, onClick, onEdit, onDelete, onArchive, onRestore, isBinPage }) {
   const preview = note.summary || note.content?.substring(0, 180) + (note.content?.length > 180 ? "..." : "");
   const hasAI = !!(note.summary && note.tags?.length > 0);
   const dateStr = new Date(note.updatedAt || note.createdAt).toLocaleDateString("en-US", {
@@ -15,7 +15,8 @@ export default function NoteCard({ note, onClick, onEdit, onDelete, onArchive })
     <Card
       id={`note-card-${note._id}`}
       sx={{
-        height: "100%",
+        width: "100%",
+        height: "auto",
         display: "flex",
         flexDirection: "column",
         transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
@@ -51,6 +52,7 @@ export default function NoteCard({ note, onClick, onEdit, onDelete, onArchive })
     >
       <CardActionArea
         onClick={onClick}
+        disabled={isBinPage}
         sx={{
           display: "flex",
           flexDirection: "column",
@@ -160,75 +162,124 @@ export default function NoteCard({ note, onClick, onEdit, onDelete, onArchive })
           px: 2,
           pb: 2.5,
           pt: 1.5,
-          gap: 1,
+          gap: 1.25,
           display: "flex",
           justifyContent: "space-between",
           borderTop: (theme) => `1px solid ${theme.palette.divider}`,
         }}
       >
-        <Button
-          size="small"
-          variant="outlined"
-          color="primary"
-          startIcon={<Edit sx={{ fontSize: 14 }} />}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (onEdit) onEdit(note._id);
-          }}
-          sx={{
-            flex: 1,
-            py: 0.75,
-            px: 1,
-            borderRadius: 2,
-            fontWeight: 600,
-            fontSize: "0.82rem",
-            textTransform: "none",
-          }}
-        >
-          Edit
-        </Button>
-        <Button
-          size="small"
-          variant="outlined"
-          color="warning"
-          startIcon={note.isArchived ? <Unarchive sx={{ fontSize: 14 }} /> : <Archive sx={{ fontSize: 14 }} />}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (onArchive) onArchive(note._id, !note.isArchived);
-          }}
-          sx={{
-            flex: 1.3,
-            py: 0.75,
-            px: 1,
-            borderRadius: 2,
-            fontWeight: 600,
-            fontSize: "0.82rem",
-            textTransform: "none",
-          }}
-        >
-          {note.isArchived ? "Unarchive" : "Archive"}
-        </Button>
-        <Button
-          size="small"
-          variant="outlined"
-          color="error"
-          startIcon={<Delete sx={{ fontSize: 14 }} />}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (onDelete) onDelete(note._id, e);
-          }}
-          sx={{
-            flex: 1,
-            py: 0.75,
-            px: 1,
-            borderRadius: 2,
-            fontWeight: 600,
-            fontSize: "0.82rem",
-            textTransform: "none",
-          }}
-        >
-          Delete
-        </Button>
+        {isBinPage ? (
+          <>
+            <Button
+              size="small"
+              variant="outlined"
+              color="success"
+              startIcon={<RestoreFromTrash sx={{ fontSize: 15 }} />}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onRestore) onRestore(note._id);
+              }}
+              sx={{
+                flex: 1,
+                py: 0.75,
+                px: 1,
+                borderRadius: 2,
+                fontWeight: 700,
+                fontSize: "0.82rem",
+                textTransform: "none",
+              }}
+            >
+              Restore
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              color="error"
+              startIcon={<DeleteForever sx={{ fontSize: 15 }} />}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onDelete) onDelete(note._id);
+              }}
+              sx={{
+                flex: 1.2,
+                py: 0.75,
+                px: 1,
+                borderRadius: 2,
+                fontWeight: 700,
+                fontSize: "0.82rem",
+                textTransform: "none",
+              }}
+            >
+              Delete
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button
+              size="small"
+              variant="outlined"
+              color="primary"
+              startIcon={<Edit sx={{ fontSize: 14 }} />}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onEdit) onEdit(note._id);
+              }}
+              sx={{
+                flex: 1,
+                py: 0.75,
+                px: 1,
+                borderRadius: 2,
+                fontWeight: 600,
+                fontSize: "0.82rem",
+                textTransform: "none",
+              }}
+            >
+              Edit
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              color="warning"
+              startIcon={note.isArchived ? <Unarchive sx={{ fontSize: 14 }} /> : <Archive sx={{ fontSize: 14 }} />}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onArchive) onArchive(note._id, !note.isArchived);
+              }}
+              sx={{
+                flex: 1.3,
+                py: 0.75,
+                px: 1,
+                borderRadius: 2,
+                fontWeight: 600,
+                fontSize: "0.82rem",
+                textTransform: "none",
+              }}
+            >
+              {note.isArchived ? "Unarchive" : "Archive"}
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              color="error"
+              startIcon={<Delete sx={{ fontSize: 14 }} />}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onDelete) onDelete(note._id, e);
+              }}
+              sx={{
+                flex: 1,
+                py: 0.75,
+                px: 1,
+                borderRadius: 2,
+                fontWeight: 600,
+                fontSize: "0.82rem",
+                textTransform: "none",
+              }}
+            >
+              Bin
+            </Button>
+          </>
+        )}
       </CardActions>
     </Card>
   );

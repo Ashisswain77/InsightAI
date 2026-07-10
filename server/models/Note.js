@@ -41,6 +41,11 @@ const noteSchema = new mongoose.Schema({
     default: false,
     index: true,
   },
+  isBinned: {
+    type: Boolean,
+    default: false,
+    index: true,
+  },
 });
 
 // Update the updatedAt field before saving

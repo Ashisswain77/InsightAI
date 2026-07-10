@@ -56,6 +56,7 @@ router.get("/search", searchLimiter, async (req, res) => {
     const notes = await Note.find({
       userId: req.user.id,
       isArchived: { $ne: true },
+      isBinned: { $ne: true },
       embedding: { $exists: true, $not: { $size: 0 } },
     }).select("title content summary tags embedding createdAt updatedAt");
 
@@ -76,10 +77,14 @@ router.get("/search", searchLimiter, async (req, res) => {
   }
 });
 
-// GET /api/notes — Fetch all non-archived notes for the logged-in user
+// GET /api/notes — Fetch all active notes (non-archived, non-binned) for the logged-in user
 router.get("/", async (req, res) => {
   try {
-    const notes = await Note.find({ userId: req.user.id, isArchived: { $ne: true } })
+    const notes = await Note.find({
+      userId: req.user.id,
+      isArchived: { $ne: true },
+      isBinned: { $ne: true },
+    })
       .select("-embedding")
       .sort({ updatedAt: -1 });
 
@@ -90,10 +95,14 @@ router.get("/", async (req, res) => {
   }
 });
 
-// GET /api/notes/archived — Fetch all archived notes for the logged-in user
+// GET /api/notes/archived — Fetch all archived notes (non-binned) for the logged-in user
 router.get("/archived", async (req, res) => {
   try {
-    const notes = await Note.find({ userId: req.user.id, isArchived: true })
+    const notes = await Note.find({
+      userId: req.user.id,
+      isArchived: true,
+      isBinned: { $ne: true },
+    })
       .select("-embedding")
       .sort({ updatedAt: -1 });
 
@@ -101,6 +110,35 @@ router.get("/archived", async (req, res) => {
   } catch (err) {
     console.error("Fetch archived notes error:", err.message);
     res.status(500).json({ message: "Failed to fetch archived notes" });
+  }
+});
+
+// GET /api/notes/binned — Fetch all binned notes for the logged-in user
+router.get("/binned", async (req, res) => {
+  try {
+    const notes = await Note.find({ userId: req.user.id, isBinned: true })
+      .select("-embedding")
+      .sort({ updatedAt: -1 });
+
+    res.json(notes);
+  } catch (err) {
+    console.error("Fetch binned notes error:", err.message);
+    res.status(500).json({ message: "Failed to fetch binned notes" });
+  }
+});
+
+// DELETE /api/notes/binned/empty — Permanently delete all binned notes for the logged-in user
+router.delete("/binned/empty", async (req, res) => {
+  try {
+    const result = await Note.deleteMany({
+      userId: req.user.id,
+      isBinned: true,
+    });
+
+    res.json({ message: `Successfully deleted all ${result.deletedCount} binned notes` });
+  } catch (err) {
+    console.error("Empty trash bin error:", err.message);
+    res.status(500).json({ message: "Failed to empty trash bin" });
   }
 });
 
@@ -169,6 +207,7 @@ router.put("/:id", async (req, res) => {
     if (title !== undefined) note.title = title.trim();
     if (content !== undefined) note.content = content;
     if (req.body.isArchived !== undefined) note.isArchived = req.body.isArchived;
+    if (req.body.isBinned !== undefined) note.isBinned = req.body.isBinned;
     note.updatedAt = new Date();
 
     await note.save();

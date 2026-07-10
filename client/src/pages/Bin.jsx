@@ -3,79 +3,73 @@ import { useNavigate } from "react-router-dom";
 import {
   Box,
   Typography,
-  Grid,
   Skeleton,
   Alert,
   Snackbar,
   Button,
 } from "@mui/material";
-import { Archive, ArrowBack } from "@mui/icons-material";
+import { Delete, ArrowBack, DeleteForever } from "@mui/icons-material";
 import Navbar from "../components/Navbar";
 import NoteCard from "../components/NoteCard";
 import api from "../api/axios";
 
-export default function Archived() {
+export default function Bin() {
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
+  const [emptying, setEmptying] = useState(false);
   const navigate = useNavigate();
 
-  // Fetch archived notes
-  const fetchArchivedNotes = async () => {
+  // Fetch binned notes
+  const fetchBinnedNotes = async () => {
     try {
-      const { data } = await api.get("/notes/archived");
+      const { data } = await api.get("/notes/binned");
       setNotes(data);
     } catch (err) {
-      console.error("Failed to fetch archived notes:", err);
+      console.error("Failed to fetch binned notes:", err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchArchivedNotes();
+    fetchBinnedNotes();
   }, []);
 
-  // Edit note
-  const handleEdit = (id) => {
-    navigate(`/notes/${id}`);
-  };
-
-  // Move note to Bin
-  const handleDelete = async (id, e) => {
-    e.stopPropagation();
+  // Permanent Delete note
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to permanently delete this note? This action cannot be undone.")) return;
     try {
-      await api.put(`/notes/${id}`, { isBinned: true });
+      await api.delete(`/notes/${id}`);
       setNotes((prev) => prev.filter((n) => n._id !== id));
       setSnackbar({
         open: true,
-        message: "Note moved to Bin!",
+        message: "Note permanently deleted from database!",
         severity: "success",
       });
     } catch (err) {
       setSnackbar({
         open: true,
-        message: err.response?.data?.message || "Failed to move note to Bin",
+        message: err.response?.data?.message || "Failed to permanently delete note",
         severity: "error",
       });
     }
   };
 
-  // Unarchive note
-  const handleUnarchive = async (id, toArchive) => {
+  // Restore note
+  const handleRestore = async (id) => {
     try {
-      await api.put(`/notes/${id}`, { isArchived: toArchive });
-      // Since toArchive is false (unarchive), it shouldn't be in Archived list anymore
+      await api.put(`/notes/${id}`, { isBinned: false });
       setNotes((prev) => prev.filter((n) => n._id !== id));
       setSnackbar({
         open: true,
-        message: "Note unarchived successfully!",
+        message: "Note restored successfully!",
         severity: "success",
       });
     } catch (err) {
       setSnackbar({
         open: true,
-        message: err.response?.data?.message || "Failed to unarchive note",
+        message: err.response?.data?.message || "Failed to restore note",
         severity: "error",
       });
     }
@@ -135,17 +129,17 @@ export default function Archived() {
                 mb: 0.5,
               }}
             >
-              Archived Insights
+              Trash Bin
             </Typography>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <Typography variant="body2" sx={{ color: "text.secondary", fontWeight: 550 }}>
-                {notes.length} archived note{notes.length !== 1 ? "s" : ""}
+              <Typography variant="body2" sx={{ color: "text.secondary", fontWeight: 555 }}>
+                {notes.length} deleted note{notes.length !== 1 ? "s" : ""}
               </Typography>
               <Typography variant="caption" sx={{ color: "divider", fontWeight: 900 }}>
                 •
               </Typography>
-              <Typography variant="body2" sx={{ color: "text.secondary", fontWeight: 550 }}>
-                Tidy Workspace
+              <Typography variant="body2" sx={{ color: "text.secondary", fontWeight: 555 }}>
+                Recycle Center
               </Typography>
             </Box>
           </Box>
@@ -179,17 +173,17 @@ export default function Archived() {
 
         {/* Notes Grid */}
         {loading ? (
-          <Grid container spacing={3}>
+          <Box className="masonry-grid">
             {[1, 2, 3].map((i) => (
-              <Grid item xs={12} sm={6} md={4} key={i}>
+              <Box key={i} className="masonry-item">
                 <Skeleton
                   variant="rounded"
                   height={220}
                   sx={{ borderRadius: 3, bgcolor: "action.hover" }}
                 />
-              </Grid>
+              </Box>
             ))}
-          </Grid>
+          </Box>
         ) : notes.length === 0 ? (
           <Box
             sx={{
@@ -210,12 +204,12 @@ export default function Archived() {
               backdropFilter: "blur(8px)",
             }}
           >
-            <Archive sx={{ fontSize: 64, color: "text.secondary", mb: 2 }} />
+            <Delete sx={{ fontSize: 64, color: "text.secondary", mb: 2, opacity: 0.7 }} />
             <Typography variant="h6" sx={{ color: "text.secondary", mb: 1 }}>
-              No archived notes
+              Trash is empty
             </Typography>
             <Typography variant="body2" sx={{ color: "text.secondary", mb: 3, maxWidth: 400 }}>
-              Archive notes from your dashboard to keep them stored safely here, away from your main list.
+              Notes you delete will appear here. You can restore them to your active dashboard anytime.
             </Typography>
             <Button
               variant="contained"
@@ -245,10 +239,9 @@ export default function Archived() {
               >
                 <NoteCard
                   note={note}
-                  onClick={() => navigate(`/notes/${note._id}`)}
-                  onEdit={handleEdit}
+                  isBinPage={true}
                   onDelete={handleDelete}
-                  onArchive={handleUnarchive}
+                  onRestore={handleRestore}
                 />
               </Box>
             ))}

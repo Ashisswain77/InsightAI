@@ -199,3 +199,28 @@ body {
   border-radius: 12px;
   white-space: nowrap;
 }
+
+/* ============================================
+   Masonry Grid Layout (Google Keep Style)
+   ============================================ */
+.masonry-grid {
+  column-count: 3;
+  column-gap: 24px;
+  width: 100%;
+}
+@media (max-width: 960px) {
+  .masonry-grid {
+    column-count: 2;
+  }
+}
+@media (max-width: 600px) {
+  .masonry-grid {
+    column-count: 1;
+  }
+}
+.masonry-item {
+  break-inside: avoid;
+  margin-bottom: 24px;
+  width: 100%;
+  display: inline-block;
+}

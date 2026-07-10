@@ -154,7 +154,7 @@ export default function Dashboard() {
                 variant="outlined"
                 size="small"
               />
-              <Button size="small" onClick={handleClearSearch} sx={{ fontSize: "0.75rem" }}>
+              <Button size="small" onClick={handleClearSearch} sx={{ fontSize: "0.85rem", fontWeight: 600 }}>
                 Show all notes
               </Button>
             </Box>

@@ -79,9 +79,9 @@ export default function Navbar() {
                 <Avatar
                   sx={{
                     bgcolor: "primary.main",
-                    width: 28,
-                    height: 28,
-                    fontSize: "0.8rem",
+                    width: 30,
+                    height: 30,
+                    fontSize: "0.9rem",
                   }}
                 >
                   {user.name?.charAt(0).toUpperCase()}
@@ -95,7 +95,9 @@ export default function Navbar() {
                     ? "rgba(148,163,184,0.2)"
                     : "rgba(15,23,42,0.1)",
                 color: "text.primary",
-                fontWeight: 500,
+                fontWeight: 550,
+                fontSize: "0.9rem",
+                height: 36,
                 display: { xs: "none", md: "flex" },
               }}
             />

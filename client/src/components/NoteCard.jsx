@@ -60,7 +60,7 @@ export default function NoteCard({ note, onClick }) {
           <Typography
             variant="h6"
             sx={{
-              fontSize: "1.05rem",
+              fontSize: "1.15rem",
               fontWeight: 600,
               mb: 1,
               lineHeight: 1.3,
@@ -84,7 +84,7 @@ export default function NoteCard({ note, onClick }) {
               WebkitLineClamp: 3,
               WebkitBoxOrient: "vertical",
               overflow: "hidden",
-              fontSize: "0.85rem",
+              fontSize: "0.95rem",
             }}
           >
             {preview}
@@ -102,7 +102,7 @@ export default function NoteCard({ note, onClick }) {
                   size="small"
                   sx={{
                     height: 26,
-                    fontSize: "0.75rem",
+                    fontSize: "0.85rem",
                     fontWeight: 500,
                     backgroundColor: "action.hover",
                   }}
@@ -124,7 +124,7 @@ export default function NoteCard({ note, onClick }) {
               <AccessTime sx={{ fontSize: 14, color: "text.secondary" }} />
               <Typography
                 variant="caption"
-                sx={{ color: "text.secondary", fontSize: "0.75rem" }}
+                sx={{ color: "text.secondary", fontSize: "0.85rem" }}
               >
                 {dateStr}
               </Typography>
@@ -139,7 +139,7 @@ export default function NoteCard({ note, onClick }) {
                 }}
               >
                 <AutoAwesome sx={{ fontSize: 14 }} />
-                <Typography variant="caption" sx={{ fontSize: "0.7rem", fontWeight: 500 }}>
+                <Typography variant="caption" sx={{ fontSize: "0.8rem", fontWeight: 500 }}>
                   AI Enhanced
                 </Typography>
               </Box>

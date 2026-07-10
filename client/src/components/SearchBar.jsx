@@ -30,6 +30,7 @@ export default function SearchBar({ onSearch, onClear }) {
         sx={{
           "& .MuiOutlinedInput-root": {
             borderRadius: 3,
+            fontSize: "1.05rem",
             background: (theme) =>
               theme.palette.mode === "dark"
                 ? "rgba(30, 41, 59, 0.6)"

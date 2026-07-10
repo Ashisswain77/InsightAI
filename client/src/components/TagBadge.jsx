@@ -15,7 +15,7 @@ export default function TagBadge({ tag, index = 0 }) {
 
   return (
     <Chip
-      icon={<LocalOffer sx={{ fontSize: 14, color: `${colorSet.color} !important` }} />}
+      icon={<LocalOffer sx={{ fontSize: 15, color: `${colorSet.color} !important` }} />}
       label={tag}
       size="small"
       sx={{
@@ -23,7 +23,7 @@ export default function TagBadge({ tag, index = 0 }) {
         color: colorSet.color,
         border: `1px solid ${colorSet.border}`,
         fontWeight: 500,
-        fontSize: "0.75rem",
+        fontSize: "0.85rem",
         height: 26,
         transition: "all 0.2s ease",
         "& .MuiChip-icon": {

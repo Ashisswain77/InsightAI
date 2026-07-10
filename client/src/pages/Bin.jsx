@@ -75,6 +75,29 @@ export default function Bin() {
     }
   };
 
+  // Empty all binned notes
+  const handleEmptyBin = async () => {
+    if (!window.confirm("Are you sure you want to permanently delete all notes in the bin? This action cannot be undone.")) return;
+    setEmptying(true);
+    try {
+      await api.delete("/notes/binned/empty");
+      setNotes([]);
+      setSnackbar({
+        open: true,
+        message: "Bin emptied successfully!",
+        severity: "success",
+      });
+    } catch (err) {
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.message || "Failed to empty bin",
+        severity: "error",
+      });
+    } finally {
+      setEmptying(false);
+    }
+  };
+
   return (
     <Box
       sx={{
@@ -144,8 +167,34 @@ export default function Bin() {
             </Box>
           </Box>
 
-          {/* Back to Dashboard Button */}
-          <Box sx={{ display: "flex", justifyContent: { xs: "flex-start", md: "flex-end" } }}>
+          {/* Actions Bar */}
+          <Box sx={{ display: "flex", gap: 2, justifyContent: { xs: "flex-start", md: "flex-end" }, alignItems: "center" }}>
+            {notes.length > 0 && (
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<DeleteForever />}
+                onClick={handleEmptyBin}
+                disabled={emptying}
+                sx={{
+                  borderRadius: 2.5,
+                  textTransform: "none",
+                  fontWeight: 700,
+                  px: 3,
+                  py: 1.1,
+                  fontSize: "0.88rem",
+                  "&:hover": {
+                    bgcolor: (theme) =>
+                      theme.palette.mode === "dark"
+                        ? "rgba(248, 113, 113, 0.1)"
+                        : "rgba(220, 38, 38, 0.06)",
+                  },
+                  transition: "all 0.2s ease",
+                }}
+              >
+                {emptying ? "Emptying..." : "Empty Bin"}
+              </Button>
+            )}
             <Button
               variant="outlined"
               startIcon={<ArrowBack />}

@@ -83,7 +83,7 @@ export default function Login() {
               WebkitTextFillColor: "transparent",
             }}
           >
-            NoteAI
+            Insights
           </Typography>
           <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.5 }}>
             Your AI-powered thinking companion

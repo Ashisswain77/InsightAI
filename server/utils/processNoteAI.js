@@ -8,11 +8,11 @@ const Note = require("../models/Note");
  *
  * @param {string} noteId - The MongoDB ObjectId of the note to process
  */
-async function processNoteAI(noteId) {
+async function processNoteInsights(noteId) {
   try {
     const note = await Note.findById(noteId);
     if (!note) {
-      console.warn(`processNoteAI: Note ${noteId} not found`);
+      console.warn(`processNoteInsights: Note ${noteId} not found`);
       return;
     }
 
@@ -60,7 +60,7 @@ Return ONLY a JSON object in this exact shape: {"tags": ["tag1", "tag2", "tag3"]
       const parsed = JSON.parse(tagsResult.choices[0].message.content);
       note.tags = Array.isArray(parsed.tags) ? parsed.tags : [];
     } catch (parseErr) {
-      console.warn("processNoteAI: Failed to parse tags JSON:", parseErr.message);
+      console.warn("processNoteInsights: Failed to parse tags JSON:", parseErr.message);
       note.tags = [];
     }
 
@@ -71,8 +71,8 @@ Return ONLY a JSON object in this exact shape: {"tags": ["tag1", "tag2", "tag3"]
     console.log(`✅ AI processing complete for note: ${noteId}`);
   } catch (err) {
     // Error isolation — log but don't crash the server or corrupt the note
-    console.error(`❌ processNoteAI error for note ${noteId}:`, err.message);
+    console.error(`❌ processNoteInsights error for note ${noteId}:`, err.message);
   }
 }
 
-module.exports = processNoteAI;
+module.exports = processNoteInsights;

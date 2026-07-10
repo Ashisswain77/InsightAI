@@ -91,7 +91,7 @@ export default function Register() {
               WebkitTextFillColor: "transparent",
             }}
           >
-            NoteAI
+            Insights
           </Typography>
           <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.5 }}>
             Start your AI-powered note journey
@@ -111,7 +111,7 @@ export default function Register() {
               Create account
             </Typography>
             <Typography variant="body2" sx={{ color: "text.secondary", mb: 3 }}>
-              Join NoteAI and unlock smart note-taking
+              Join Insights and unlock smart note-taking
             </Typography>
 
             {error && (

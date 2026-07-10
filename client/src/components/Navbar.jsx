@@ -64,7 +64,7 @@ export default function Navbar() {
               display: { xs: "none", sm: "block" },
             }}
           >
-            NoteAI
+            Insights
           </Typography>
         </Box>
 

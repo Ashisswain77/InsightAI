@@ -3,7 +3,7 @@ const rateLimit = require("express-rate-limit");
 const authMiddleware = require("../middleware/authMiddleware");
 const Note = require("../models/Note");
 const openai = require("../utils/openai");
-const processNoteAI = require("../utils/processNoteAI");
+const processNoteInsights = require("../utils/processNoteInsights");
 
 const router = express.Router();
 
@@ -110,7 +110,7 @@ router.post("/", async (req, res) => {
     res.status(201).json(note);
 
     // Fire-and-forget AI processing (no await)
-    processNoteAI(note._id);
+    processNoteInsights(note._id);
   } catch (err) {
     console.error("Create note error:", err.message);
     res.status(500).json({ message: "Failed to create note" });
@@ -163,7 +163,7 @@ router.put("/:id", async (req, res) => {
     res.json(responseNote);
 
     // Re-trigger AI processing in background
-    processNoteAI(note._id);
+    processNoteInsights(note._id);
   } catch (err) {
     console.error("Update note error:", err.message);
     res.status(500).json({ message: "Failed to update note" });

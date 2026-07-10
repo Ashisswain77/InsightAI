@@ -15,17 +15,16 @@ import {
   DialogActions,
   Tooltip,
   Divider,
+  Grid,
 } from "@mui/material";
 import {
   ArrowBack,
   Save,
   Delete,
   AccessTime,
-  AutoAwesome,
+  Check,
 } from "@mui/icons-material";
 import Navbar from "../components/Navbar";
-import SummaryBox from "../components/SummaryBox";
-import TagBadge from "../components/TagBadge";
 import api from "../api/axios";
 
 export default function NoteDetail() {
@@ -141,13 +140,17 @@ export default function NoteDetail() {
       })
     : "";
 
+  const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0;
+  const charCount = content.length;
+  const readTime = Math.ceil(wordCount / 200) || 1;
+
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
       <Navbar />
 
       <Box
         className="animate-fade-in"
-        sx={{ maxWidth: 900, mx: "auto", px: { xs: 2, md: 4 }, py: 4 }}
+        sx={{ maxWidth: 950, mx: "auto", px: { xs: 2, md: 4 }, py: 4 }}
       >
         {/* Top bar */}
         <Box
@@ -155,39 +158,55 @@ export default function NoteDetail() {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            mb: 3,
+            mb: 4,
             flexWrap: "wrap",
-            gap: 1,
+            gap: 2,
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <IconButton
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <Button
               id="back-to-dashboard-btn"
               onClick={() => navigate("/dashboard")}
+              variant="outlined"
+              startIcon={<ArrowBack />}
               sx={{
-                bgcolor: "action.hover",
-                "&:hover": { bgcolor: "action.selected" },
+                borderRadius: 2.5,
+                textTransform: "none",
+                fontWeight: 600,
+                color: "text.primary",
+                borderColor: "divider",
+                px: 2.2,
+                py: 0.9,
+                "&:hover": {
+                  bgcolor: "action.hover",
+                  borderColor: "text.secondary",
+                },
               }}
             >
-              <ArrowBack />
-            </IconButton>
+              Back
+            </Button>
             {note && (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, color: "text.secondary" }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, color: "text.secondary" }}>
                 <AccessTime sx={{ fontSize: 16 }} />
-                <Typography variant="caption">{dateStr}</Typography>
+                <Typography variant="caption" sx={{ fontSize: "0.85rem", fontWeight: 500 }}>{dateStr}</Typography>
               </Box>
             )}
           </Box>
 
-          <Box sx={{ display: "flex", gap: 1 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
             <Tooltip title="Delete note">
               <IconButton
                 id="delete-note-btn"
                 onClick={() => setDeleteOpen(true)}
                 sx={{
                   color: "text.secondary",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  borderRadius: 2.5,
+                  p: 1.1,
                   "&:hover": {
                     color: "error.main",
+                    borderColor: "error.main",
                     bgcolor: (theme) =>
                       theme.palette.mode === "dark"
                         ? "rgba(248,113,113,0.1)"
@@ -195,27 +214,39 @@ export default function NoteDetail() {
                   },
                 }}
               >
-                <Delete />
+                <Delete sx={{ fontSize: 20 }} />
               </IconButton>
             </Tooltip>
             <Button
               id="save-note-btn"
-              variant="contained"
-              startIcon={<Save />}
+              variant={hasChanges ? "contained" : "outlined"}
+              color={hasChanges ? "primary" : "success"}
+              startIcon={saving ? null : hasChanges ? <Save /> : <Check />}
               onClick={handleSave}
-              disabled={saving || !hasChanges}
+              disabled={saving}
               sx={{
+                borderRadius: 2.5,
+                textTransform: "none",
+                fontWeight: 600,
+                px: 3,
+                py: 1,
+                borderColor: !hasChanges ? "success.main" : undefined,
+                color: !hasChanges ? "success.main" : "#fff",
                 background: hasChanges
                   ? "linear-gradient(135deg, #6366f1, #a855f7)"
                   : undefined,
-                "&:hover": hasChanges
-                  ? {
-                      background: "linear-gradient(135deg, #4f46e5, #9333ea)",
-                    }
-                  : undefined,
+                boxShadow: hasChanges ? "0 4px 14px rgba(99, 102, 241, 0.3)" : undefined,
+                "&:hover": {
+                  background: hasChanges
+                    ? "linear-gradient(135deg, #4f46e5, #9333ea)"
+                    : undefined,
+                  borderColor: !hasChanges ? "success.dark" : undefined,
+                  color: !hasChanges ? "success.dark" : "#fff",
+                },
+                transition: "all 0.3s ease",
               }}
             >
-              {saving ? "Saving..." : hasChanges ? "Save" : "Saved"}
+              {saving ? "Saving..." : hasChanges ? "Save Note" : "Saved"}
             </Button>
           </Box>
         </Box>
@@ -223,11 +254,31 @@ export default function NoteDetail() {
         {loading ? (
           <Box>
             <Skeleton variant="rounded" height={56} sx={{ mb: 3, borderRadius: 2 }} />
-            <Skeleton variant="rounded" height={300} sx={{ mb: 3, borderRadius: 2 }} />
-            <Skeleton variant="rounded" height={80} sx={{ borderRadius: 2 }} />
+            <Skeleton variant="rounded" height={450} sx={{ borderRadius: 4 }} />
           </Box>
         ) : (
-          <>
+          <Box
+            sx={{
+              background: (theme) =>
+                theme.palette.mode === "dark"
+                  ? "rgba(30, 41, 59, 0.4)"
+                  : "rgba(255, 255, 255, 0.75)",
+              backdropFilter: "blur(12px)",
+              borderRadius: 4,
+              border: "1px solid",
+              borderColor: (theme) =>
+                theme.palette.mode === "dark"
+                  ? "rgba(148, 163, 184, 0.12)"
+                  : "rgba(15, 23, 42, 0.08)",
+              p: { xs: 3, md: 4 },
+              display: "flex",
+              flexDirection: "column",
+              boxShadow: (theme) =>
+                theme.palette.mode === "dark"
+                  ? "0 8px 32px rgba(0,0,0,0.2)"
+                  : "0 8px 32px rgba(0,0,0,0.03)",
+            }}
+          >
             {/* Title */}
             <TextField
               fullWidth
@@ -239,14 +290,18 @@ export default function NoteDetail() {
               InputProps={{
                 disableUnderline: true,
                 sx: {
-                  fontSize: "1.8rem",
-                  fontWeight: 700,
-                  lineHeight: 1.3,
+                  fontSize: { xs: "1.8rem", md: "2.2rem" },
+                  fontWeight: 800,
+                  lineHeight: 1.2,
+                  color: "text.primary",
+                  fontFamily: '"Rubik", sans-serif',
                   pb: 1,
                 },
               }}
               sx={{ mb: 2 }}
             />
+
+            <Divider sx={{ mb: 3 }} />
 
             {/* Content */}
             <TextField
@@ -256,90 +311,49 @@ export default function NoteDetail() {
               onChange={(e) => setContent(e.target.value)}
               placeholder="Start writing your note..."
               multiline
-              minRows={12}
-              maxRows={30}
+              minRows={4}
+              maxRows={35}
               variant="outlined"
               sx={{
-                mb: 4,
+                flexGrow: 1,
+                mb: 3,
                 "& .MuiOutlinedInput-root": {
-                  borderRadius: 2,
-                  fontSize: "1rem",
+                  padding: 0,
+                  fontSize: "1.1rem",
                   lineHeight: 1.8,
-                  bgcolor: (theme) =>
-                    theme.palette.mode === "dark"
-                      ? "rgba(30, 41, 59, 0.4)"
-                      : "rgba(241, 245, 249, 0.5)",
+                  fontFamily: '"Rubik", sans-serif',
+                  color: "text.primary",
+                  "& fieldset": { border: "none" },
+                  "&:hover fieldset": { border: "none" },
+                  "&.Mui-focused fieldset": { border: "none" },
                 },
               }}
             />
 
-            {/* AI Section */}
-            {(note?.summary || note?.tags?.length > 0) && (
-              <>
-                <Divider sx={{ mb: 3 }}>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, color: "text.secondary" }}>
-                    <AutoAwesome sx={{ fontSize: 16 }} />
-                    <Typography variant="caption" sx={{ fontWeight: 600, letterSpacing: "0.05em" }}>
-                      AI INSIGHTS
-                    </Typography>
-                  </Box>
-                </Divider>
-
-                {/* Summary */}
-                <Box sx={{ mb: 3 }}>
-                  <SummaryBox summary={note.summary} />
-                </Box>
-
-                {/* Tags */}
-                {note.tags?.length > 0 && (
-                  <Box>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        fontWeight: 600,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.08em",
-                        color: "text.secondary",
-                        mb: 1.5,
-                        display: "block",
-                      }}
-                    >
-                      Auto-generated Tags
-                    </Typography>
-                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-                      {note.tags.map((tag, i) => (
-                        <TagBadge key={tag} tag={tag} index={i} />
-                      ))}
-                    </Box>
-                  </Box>
-                )}
-              </>
-            )}
-
-            {/* AI Processing indicator */}
-            {note && !note.summary && !note.tags?.length && (
-              <Box
-                sx={{
-                  p: 2.5,
-                  borderRadius: 2,
-                  bgcolor: "action.hover",
-                  textAlign: "center",
-                }}
-              >
-                <AutoAwesome
-                  sx={{
-                    fontSize: 24,
-                    color: "primary.light",
-                    mb: 1,
-                    animation: "sparkle 1.5s ease-in-out infinite",
-                  }}
-                />
-                <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                  AI is analyzing your note — summary and tags will appear shortly...
+            {/* Footer Metadata */}
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                pt: 2,
+                borderTop: (theme) => `1px solid ${theme.palette.divider}`,
+                color: "text.secondary",
+              }}
+            >
+              <Box sx={{ display: "flex", gap: 3 }}>
+                <Typography variant="caption" sx={{ fontSize: "0.85rem", fontWeight: 550 }}>
+                  {wordCount} words
+                </Typography>
+                <Typography variant="caption" sx={{ fontSize: "0.85rem", fontWeight: 550 }}>
+                  {charCount} characters
                 </Typography>
               </Box>
-            )}
-          </>
+              <Typography variant="caption" sx={{ fontSize: "0.85rem", fontWeight: 550 }}>
+                {readTime} min read
+              </Typography>
+            </Box>
+          </Box>
         )}
       </Box>
 

@@ -104,6 +104,35 @@ export default function Dashboard() {
     }
   };
 
+  // Edit note
+  const handleEdit = (id) => {
+    navigate(`/notes/${id}`);
+  };
+
+  // Delete note
+  const handleDelete = async (id, e) => {
+    e.stopPropagation();
+    if (!window.confirm("Are you sure you want to delete this note?")) return;
+    try {
+      await api.delete(`/notes/${id}`);
+      setNotes((prev) => prev.filter((n) => n._id !== id));
+      if (searchResults) {
+        setSearchResults((prev) => prev.filter((n) => n._id !== id));
+      }
+      setSnackbar({
+        open: true,
+        message: "Note deleted successfully!",
+        severity: "success",
+      });
+    } catch (err) {
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.message || "Failed to delete note",
+        severity: "error",
+      });
+    }
+  };
+
   const displayNotes = searchResults !== null ? searchResults : notes;
   const isSearchMode = searchResults !== null;
 
@@ -142,23 +171,63 @@ export default function Dashboard() {
           </Typography>
         </Box>
 
-        {/* Search */}
+        {/* Create Note Bar */}
         <Box sx={{ mb: 4 }}>
-          <SearchBar onSearch={handleSearch} onClear={handleClearSearch} />
-          {isSearchMode && (
-            <Box sx={{ mt: 2, display: "flex", alignItems: "center", gap: 1 }}>
-              <Chip
-                icon={<AutoAwesome sx={{ fontSize: 16 }} />}
-                label={`Semantic results: ${searchResults.length} found`}
-                color="primary"
-                variant="outlined"
-                size="small"
-              />
-              <Button size="small" onClick={handleClearSearch} sx={{ fontSize: "0.85rem", fontWeight: 600 }}>
-                Show all notes
-              </Button>
+          <Box
+            onClick={() => setCreateOpen(true)}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 2,
+              p: 2.2,
+              borderRadius: 3,
+              cursor: "pointer",
+              background: (theme) =>
+                theme.palette.mode === "dark"
+                  ? "rgba(30, 41, 59, 0.6)"
+                  : "rgba(255, 255, 255, 0.8)",
+              backdropFilter: "blur(8px)",
+              border: "1px solid",
+              borderColor: (theme) =>
+                theme.palette.mode === "dark"
+                  ? "rgba(148, 163, 184, 0.15)"
+                  : "rgba(15, 23, 42, 0.1)",
+              transition: "all 0.3s ease",
+              "&:hover": {
+                borderColor: "primary.main",
+                boxShadow: (theme) =>
+                  theme.palette.mode === "dark"
+                    ? "0 0 0 3px rgba(129, 140, 248, 0.15)"
+                    : "0 0 0 3px rgba(79, 70, 229, 0.1)",
+              },
+            }}
+          >
+            <Box
+              sx={{
+                width: 36,
+                height: 36,
+                borderRadius: "10px",
+                background: "linear-gradient(135deg, #6366f1, #a855f7)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: "0 4px 12px rgba(99, 102, 241, 0.25)",
+              }}
+            >
+              <Add sx={{ color: "#fff", fontSize: 20 }} />
             </Box>
-          )}
+            <Typography
+              variant="body1"
+              sx={{
+                color: "text.secondary",
+                fontSize: "1.05rem",
+                fontWeight: 500,
+                userSelect: "none",
+              }}
+            >
+              Take a note or create new Insights...
+            </Typography>
+          </Box>
         </Box>
 
         {/* Notes Grid */}
@@ -244,6 +313,8 @@ export default function Dashboard() {
                   <NoteCard
                     note={note}
                     onClick={() => navigate(`/notes/${note._id}`)}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
                   />
                 </Box>
               </Grid>
@@ -252,28 +323,6 @@ export default function Dashboard() {
         )}
       </Box>
 
-      {/* FAB */}
-      <Fab
-        id="create-note-fab"
-        onClick={() => setCreateOpen(true)}
-        sx={{
-          position: "fixed",
-          bottom: 32,
-          right: 32,
-          width: 60,
-          height: 60,
-          background: "linear-gradient(135deg, #6366f1, #a855f7)",
-          boxShadow: "0 6px 24px rgba(99, 102, 241, 0.4)",
-          "&:hover": {
-            background: "linear-gradient(135deg, #4f46e5, #9333ea)",
-            boxShadow: "0 8px 32px rgba(99, 102, 241, 0.5)",
-            transform: "scale(1.05)",
-          },
-          transition: "all 0.3s ease",
-        }}
-      >
-        <Add sx={{ color: "#fff", fontSize: 28 }} />
-      </Fab>
 
       {/* Create Note Dialog */}
       <Dialog

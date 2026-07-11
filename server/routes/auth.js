@@ -98,4 +98,67 @@ router.post("/login", async (req, res) => {
   }
 });
 
+// POST /api/auth/google — Verify Google Access Token and authenticate/register
+router.post("/google", async (req, res) => {
+  try {
+    const { accessToken } = req.body;
+
+    if (!accessToken) {
+      return res.status(400).json({ message: "Access token is required" });
+    }
+
+    // Call Google userinfo endpoint to verify token and get profile details
+    const response = await fetch("https://openidconnect.googleapis.com/v1/userinfo", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      return res.status(401).json({ message: "Invalid or expired Google token" });
+    }
+
+    const googleUser = await response.json();
+    const { email, name } = googleUser;
+
+    if (!email) {
+      return res.status(400).json({ message: "Google account does not provide an email" });
+    }
+
+    // Check if user already exists
+    let user = await User.findOne({ email: email.toLowerCase() });
+
+    if (!user) {
+      // Generate a random password and hash it
+      const randomPassword = require("crypto").randomBytes(32).toString("hex");
+      const hashedPassword = await bcrypt.hash(randomPassword, 10);
+
+      // Create new user
+      user = await User.create({
+        name: name || email.split("@")[0],
+        email: email.toLowerCase().trim(),
+        password: hashedPassword,
+      });
+    }
+
+    // Sign JWT
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
+
+    res.json({
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+      },
+    });
+  } catch (err) {
+    console.error("Google Auth error:", err.message);
+    res.status(500).json({ message: "Google authentication failed" });
+  }
+});
+
 module.exports = router;
+

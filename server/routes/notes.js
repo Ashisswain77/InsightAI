@@ -19,6 +19,7 @@ const searchLimiter = rateLimit({
 
 // --- Cosine similarity helper ---
 function cosineSimilarity(a, b) {
+  if (!a || !b || a.length !== b.length) return 0;
   let dot = 0,
     magA = 0,
     magB = 0;
@@ -47,8 +48,9 @@ router.get("/search", searchLimiter, async (req, res) => {
 
     // Step 1: Embed the search query
     const embRes = await openai.embeddings.create({
-      model: "text-embedding-3-small",
+      model: "nvidia/llama-nemotron-embed-1b-v2",
       input: q.trim(),
+      input_type: "query",
     });
     const queryVec = embRes.data[0].embedding;
 

@@ -288,8 +288,13 @@ export default function Dashboard() {
           </Box>
         </Box>
 
+        {/* Search Bar Container */}
+        <Box sx={{ mb: 4 }}>
+          <SearchBar onSearch={handleSearch} onClear={handleClearSearch} />
+        </Box>
+
         {/* Notes Grid */}
-        {loading ? (
+        {loading || searching ? (
           <Grid container spacing={3}>
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <Grid item xs={12} sm={6} md={4} key={i}>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box,
@@ -34,24 +34,40 @@ import {
   Search,
   ArrowBack,
   Shield,
+  Lock,
+  LockOpen,
 } from "@mui/icons-material";
 import Navbar from "../components/Navbar";
 import api from "../api/axios";
+import { deriveKey, encryptText, decryptText } from "../utils/crypto";
 
 const CATEGORIES = ["General", "Website", "Work", "Social Media", "Financial", "PIN / Code"];
+const VAULT_VERIFICATION_TITLE = "__vault_verification__";
+const SESSION_KEY = "vault_master_key";
 
 export default function Locker() {
+  // Vault gate states
+  const [vaultStatus, setVaultStatus] = useState("loading"); // "loading" | "setup" | "locked" | "unlocked"
+  const [vaultKey, setVaultKey] = useState(null);
+  const [masterInput, setMasterInput] = useState("");
+  const [confirmInput, setConfirmInput] = useState("");
+  const [showMasterInput, setShowMasterInput] = useState(false);
+  const [gateLoading, setGateLoading] = useState(false);
+  const [gateError, setGateError] = useState("");
+
+  // Main vault states
   const [credentials, setCredentials] = useState([]);
+  const [rawCredentials, setRawCredentials] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
-  
+
   // Dialog State
   const [openDialog, setOpenDialog] = useState(false);
   const [editingCred, setEditingCred] = useState(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
-  
+
   // Form State
   const [formTitle, setFormTitle] = useState("");
   const [formUsername, setFormUsername] = useState("");
@@ -62,32 +78,154 @@ export default function Locker() {
 
   // Password Visibility Map (Set of visible credential IDs)
   const [visibleIds, setVisibleIds] = useState(new Set());
-  
+
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
   const navigate = useNavigate();
 
-  // Fetch credentials
-  const fetchCredentials = async () => {
-    try {
-      const { data } = await api.get("/locker");
-      setCredentials(data);
-    } catch (err) {
-      console.error("Failed to fetch credentials:", err);
-      setSnackbar({
-        open: true,
-        message: "Failed to fetch secure credentials",
-        severity: "error",
-      });
-    } finally {
+  // ─── Vault Initialization Check ──────────────────────────────
+  useEffect(() => {
+    const checkVault = async () => {
+      try {
+        const { data } = await api.get("/locker");
+        const verification = data.find((c) => c.title === VAULT_VERIFICATION_TITLE);
+        if (verification) {
+          // Vault has been set up before — check sessionStorage for cached key
+          const cachedPassword = sessionStorage.getItem(SESSION_KEY);
+          if (cachedPassword) {
+            try {
+              const key = await deriveKey(cachedPassword);
+              await decryptText(verification.encryptedPassword, verification.iv, key);
+              setVaultKey(key);
+              setRawCredentials(data);
+              setVaultStatus("unlocked");
+            } catch {
+              // Cached key is stale
+              sessionStorage.removeItem(SESSION_KEY);
+              setRawCredentials(data);
+              setVaultStatus("locked");
+            }
+          } else {
+            setRawCredentials(data);
+            setVaultStatus("locked");
+          }
+        } else {
+          setVaultStatus("setup");
+        }
+      } catch (err) {
+        console.error("Vault check failed:", err);
+        setVaultStatus("setup");
+      }
+    };
+    checkVault();
+  }, []);
+
+  // ─── Decrypt all credentials when vault unlocks ──────────────
+  const decryptAll = useCallback(
+    async (raw, key) => {
+      const decrypted = [];
+      for (const cred of raw) {
+        if (cred.title === VAULT_VERIFICATION_TITLE) continue;
+        let plainPassword = "";
+        try {
+          plainPassword = await decryptText(cred.encryptedPassword, cred.iv, key);
+        } catch {
+          plainPassword = "[Decryption Failed]";
+        }
+        decrypted.push({
+          _id: cred._id,
+          title: cred.title,
+          username: cred.username,
+          password: plainPassword,
+          category: cred.category,
+          createdAt: cred.createdAt,
+          updatedAt: cred.updatedAt,
+        });
+      }
+      setCredentials(decrypted);
       setLoading(false);
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (vaultStatus === "unlocked" && vaultKey && rawCredentials.length > 0) {
+      decryptAll(rawCredentials, vaultKey);
+    } else if (vaultStatus === "unlocked" && rawCredentials.length === 0) {
+      setCredentials([]);
+      setLoading(false);
+    }
+  }, [vaultStatus, vaultKey, rawCredentials, decryptAll]);
+
+  // ─── Setup vault (first time) ────────────────────────────────
+  const handleSetup = async () => {
+    if (!masterInput || masterInput.length < 6) {
+      setGateError("Master password must be at least 6 characters.");
+      return;
+    }
+    if (masterInput !== confirmInput) {
+      setGateError("Passwords do not match.");
+      return;
+    }
+
+    setGateLoading(true);
+    setGateError("");
+    try {
+      const key = await deriveKey(masterInput);
+      const { iv, ciphertext } = await encryptText("vault_ok", key);
+
+      await api.post("/locker", {
+        title: VAULT_VERIFICATION_TITLE,
+        username: "",
+        encryptedPassword: ciphertext,
+        iv,
+        category: "General",
+      });
+
+      sessionStorage.setItem(SESSION_KEY, masterInput);
+      setVaultKey(key);
+      setRawCredentials([]);
+      setVaultStatus("unlocked");
+      setLoading(false);
+    } catch (err) {
+      setGateError("Failed to initialize vault. Please try again.");
+      console.error("Vault setup error:", err);
+    } finally {
+      setGateLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchCredentials();
-  }, []);
+  // ─── Unlock vault ────────────────────────────────────────────
+  const handleUnlock = async () => {
+    if (!masterInput) {
+      setGateError("Enter your master password.");
+      return;
+    }
 
-  // Toggle Visibility
+    setGateLoading(true);
+    setGateError("");
+    try {
+      const key = await deriveKey(masterInput);
+      const verification = rawCredentials.find((c) => c.title === VAULT_VERIFICATION_TITLE);
+      if (!verification) {
+        setGateError("Vault verification record not found.");
+        setGateLoading(false);
+        return;
+      }
+
+      await decryptText(verification.encryptedPassword, verification.iv, key);
+
+      // Unlock succeeded
+      sessionStorage.setItem(SESSION_KEY, masterInput);
+      setVaultKey(key);
+      setVaultStatus("unlocked");
+    } catch {
+      setGateError("Incorrect master password. Please try again.");
+    } finally {
+      setGateLoading(false);
+    }
+  };
+
+  // ─── Toggle Visibility ───────────────────────────────────────
   const toggleVisibility = (id) => {
     const newVisible = new Set(visibleIds);
     if (newVisible.has(id)) {
@@ -98,7 +236,7 @@ export default function Locker() {
     setVisibleIds(newVisible);
   };
 
-  // Copy to Clipboard
+  // ─── Copy to Clipboard ──────────────────────────────────────
   const handleCopy = (text, label) => {
     navigator.clipboard.writeText(text);
     setSnackbar({
@@ -108,7 +246,7 @@ export default function Locker() {
     });
   };
 
-  // Open Add Dialog
+  // ─── Open Add Dialog ────────────────────────────────────────
   const handleOpenAdd = () => {
     setEditingCred(null);
     setFormTitle("");
@@ -119,7 +257,7 @@ export default function Locker() {
     setOpenDialog(true);
   };
 
-  // Open Edit Dialog
+  // ─── Open Edit Dialog ───────────────────────────────────────
   const handleOpenEdit = (cred) => {
     setEditingCred(cred);
     setFormTitle(cred.title);
@@ -130,7 +268,7 @@ export default function Locker() {
     setOpenDialog(true);
   };
 
-  // Save Credential
+  // ─── Save Credential (client-side encryption) ───────────────
   const handleSave = async (e) => {
     e.preventDefault();
     if (!formTitle || !formPassword) {
@@ -144,18 +282,32 @@ export default function Locker() {
 
     setSaving(true);
     try {
+      const { iv, ciphertext } = await encryptText(formPassword, vaultKey);
+
       const payload = {
         title: formTitle,
         username: formUsername,
-        password: formPassword,
+        encryptedPassword: ciphertext,
+        iv,
         category: formCategory,
       };
 
       if (editingCred) {
-        // Edit existing
         const { data } = await api.put(`/locker/${editingCred._id}`, payload);
+        // Update local state with decrypted version
         setCredentials((prev) =>
-          prev.map((c) => (c._id === editingCred._id ? data : c))
+          prev.map((c) =>
+            c._id === editingCred._id
+              ? {
+                  ...c,
+                  title: data.title,
+                  username: data.username,
+                  password: formPassword,
+                  category: data.category,
+                  updatedAt: data.updatedAt,
+                }
+              : c
+          )
         );
         setSnackbar({
           open: true,
@@ -163,9 +315,19 @@ export default function Locker() {
           severity: "success",
         });
       } else {
-        // Add new
         const { data } = await api.post("/locker", payload);
-        setCredentials((prev) => [data, ...prev]);
+        setCredentials((prev) => [
+          {
+            _id: data._id,
+            title: data.title,
+            username: data.username,
+            password: formPassword,
+            category: data.category,
+            createdAt: data.createdAt,
+            updatedAt: data.updatedAt,
+          },
+          ...prev,
+        ]);
         setSnackbar({
           open: true,
           message: "Credential saved securely!",
@@ -184,7 +346,7 @@ export default function Locker() {
     }
   };
 
-  // Delete Credential
+  // ─── Delete Credential ──────────────────────────────────────
   const handleDeleteClick = (id) => {
     setDeletingId(id);
     setDeleteConfirmOpen(true);
@@ -212,7 +374,7 @@ export default function Locker() {
     }
   };
 
-  // Filter credentials
+  // ─── Filter credentials ─────────────────────────────────────
   const filteredCredentials = credentials.filter((cred) => {
     const matchesSearch =
       cred.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -222,6 +384,249 @@ export default function Locker() {
     return matchesSearch && matchesCategory;
   });
 
+  // ═══════════════════════════════════════════════════════════════
+  // RENDER: Vault Gate (Setup / Unlock)
+  // ═══════════════════════════════════════════════════════════════
+  if (vaultStatus === "loading") {
+    return (
+      <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
+        <Navbar />
+        <Box sx={{ maxWidth: 1200, mx: "auto", px: { xs: 2, md: 4 }, py: 4 }}>
+          <Skeleton variant="rounded" height={200} sx={{ borderRadius: 3, mb: 3 }} />
+          <Skeleton variant="rounded" height={300} sx={{ borderRadius: 3 }} />
+        </Box>
+      </Box>
+    );
+  }
+
+  if (vaultStatus === "setup" || vaultStatus === "locked") {
+    const isSetup = vaultStatus === "setup";
+    return (
+      <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
+        <Navbar />
+        <Box
+          className="animate-fade-in"
+          sx={{
+            maxWidth: 480,
+            mx: "auto",
+            px: { xs: 2, md: 4 },
+            py: { xs: 8, md: 12 },
+          }}
+        >
+          <Box
+            sx={{
+              p: 4,
+              borderRadius: 4,
+              background: (theme) =>
+                theme.palette.mode === "dark"
+                  ? "rgba(30, 41, 59, 0.5)"
+                  : "rgba(255, 255, 255, 0.8)",
+              backdropFilter: "blur(16px)",
+              border: "1px solid",
+              borderColor: (theme) =>
+                theme.palette.mode === "dark"
+                  ? "rgba(148, 163, 184, 0.12)"
+                  : "rgba(15, 23, 42, 0.08)",
+              boxShadow: (theme) =>
+                theme.palette.mode === "dark"
+                  ? "0 16px 48px rgba(0,0,0,0.25)"
+                  : "0 16px 48px rgba(0,0,0,0.04)",
+              position: "relative",
+              overflow: "hidden",
+              "&::before": {
+                content: '""',
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                height: "4px",
+                background: "linear-gradient(90deg, #10b981, #34d399, #06b6d4)",
+              },
+            }}
+          >
+            {/* Icon */}
+            <Box sx={{ display: "flex", justifyContent: "center", mb: 3 }}>
+              <Box
+                sx={{
+                  width: 72,
+                  height: 72,
+                  borderRadius: "50%",
+                  background: "linear-gradient(135deg, #10b981, #059669)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: "0 8px 24px rgba(16, 185, 129, 0.3)",
+                }}
+              >
+                {isSetup ? (
+                  <Shield sx={{ color: "#fff", fontSize: 36 }} />
+                ) : (
+                  <Lock sx={{ color: "#fff", fontSize: 36 }} />
+                )}
+              </Box>
+            </Box>
+
+            {/* Title */}
+            <Typography
+              variant="h5"
+              align="center"
+              sx={{
+                fontWeight: 800,
+                fontFamily: '"Archivo Black", sans-serif',
+                letterSpacing: "-0.02em",
+                background: "linear-gradient(135deg, #10b981, #34d399)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                mb: 1,
+              }}
+            >
+              {isSetup ? "Setup Your Vault" : "Unlock Vault"}
+            </Typography>
+            <Typography
+              variant="body2"
+              align="center"
+              sx={{ color: "text.secondary", mb: 3.5, fontWeight: 500 }}
+            >
+              {isSetup
+                ? "Create a master password to encrypt your credentials. This password never leaves your browser."
+                : "Enter your master password to decrypt and access your credentials."}
+            </Typography>
+
+            {/* Error */}
+            {gateError && (
+              <Alert severity="error" sx={{ mb: 2.5, borderRadius: 2 }}>
+                {gateError}
+              </Alert>
+            )}
+
+            {/* Password Field */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                isSetup ? handleSetup() : handleUnlock();
+              }}
+            >
+              <TextField
+                fullWidth
+                id="vault-master-password"
+                label="Master Password"
+                type={showMasterInput ? "text" : "password"}
+                value={masterInput}
+                onChange={(e) => setMasterInput(e.target.value)}
+                autoFocus
+                sx={{
+                  mb: isSetup ? 2.5 : 3,
+                  "& .MuiOutlinedInput-root": {
+                    borderRadius: 3,
+                    bgcolor: (theme) =>
+                      theme.palette.mode === "dark"
+                        ? "rgba(15, 23, 42, 0.25)"
+                        : "rgba(0, 0, 0, 0.015)",
+                    "& fieldset": { borderColor: "divider" },
+                    "&:hover fieldset": { borderColor: "text.secondary" },
+                    "&.Mui-focused fieldset": { borderColor: "#10b981" },
+                  },
+                  "& .MuiInputLabel-root": {
+                    fontWeight: 550,
+                    "&.Mui-focused": { color: "#10b981" },
+                  },
+                }}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        edge="end"
+                        onClick={() => setShowMasterInput(!showMasterInput)}
+                      >
+                        {showMasterInput ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+
+              {isSetup && (
+                <TextField
+                  fullWidth
+                  id="vault-confirm-password"
+                  label="Confirm Master Password"
+                  type={showMasterInput ? "text" : "password"}
+                  value={confirmInput}
+                  onChange={(e) => setConfirmInput(e.target.value)}
+                  sx={{
+                    mb: 3,
+                    "& .MuiOutlinedInput-root": {
+                      borderRadius: 3,
+                      bgcolor: (theme) =>
+                        theme.palette.mode === "dark"
+                          ? "rgba(15, 23, 42, 0.25)"
+                          : "rgba(0, 0, 0, 0.015)",
+                      "& fieldset": { borderColor: "divider" },
+                      "&:hover fieldset": { borderColor: "text.secondary" },
+                      "&.Mui-focused fieldset": { borderColor: "#10b981" },
+                    },
+                    "& .MuiInputLabel-root": {
+                      fontWeight: 550,
+                      "&.Mui-focused": { color: "#10b981" },
+                    },
+                  }}
+                />
+              )}
+
+              <Button
+                id="vault-submit-btn"
+                type="submit"
+                fullWidth
+                variant="contained"
+                disabled={gateLoading}
+                startIcon={isSetup ? <Shield /> : <LockOpen />}
+                sx={{
+                  borderRadius: 3,
+                  textTransform: "none",
+                  fontWeight: 700,
+                  py: 1.5,
+                  fontSize: "1rem",
+                  background: "linear-gradient(135deg, #10b981, #059669)",
+                  boxShadow: "0 4px 14px rgba(16, 185, 129, 0.3)",
+                  "&:hover": {
+                    background: "linear-gradient(135deg, #059669, #047857)",
+                  },
+                  transition: "all 0.3s ease",
+                }}
+              >
+                {gateLoading
+                  ? isSetup
+                    ? "Initializing Vault..."
+                    : "Unlocking..."
+                  : isSetup
+                  ? "Create Vault"
+                  : "Unlock Vault"}
+              </Button>
+            </form>
+
+            {/* Security Note */}
+            <Typography
+              variant="caption"
+              align="center"
+              sx={{
+                display: "block",
+                mt: 3,
+                color: "text.secondary",
+                opacity: 0.7,
+                lineHeight: 1.5,
+              }}
+            >
+              🔐 Zero-knowledge encryption — your master password and credentials never leave your browser.
+            </Typography>
+          </Box>
+        </Box>
+      </Box>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // RENDER: Main Vault UI (Unlocked)
+  // ═══════════════════════════════════════════════════════════════
   return (
     <Box
       sx={{
@@ -294,7 +699,7 @@ export default function Locker() {
                 Password Vault
               </Typography>
               <Typography variant="body2" sx={{ color: "text.secondary", fontWeight: 600 }}>
-                End-to-End Encrypted Secure Locker
+                Zero-Knowledge E2E Encrypted Vault
               </Typography>
             </Box>
           </Box>
@@ -346,7 +751,7 @@ export default function Locker() {
           </Box>
         </Box>
 
-        {/* Categories and Search bar bar */}
+        {/* Categories and Search bar */}
         <Box
           sx={{
             display: "flex",
@@ -742,7 +1147,7 @@ export default function Locker() {
                 },
               }}
             >
-              {saving ? "Saving..." : "Save Secret"}
+              {saving ? "Encrypting..." : "Save Secret"}
             </Button>
           </DialogActions>
         </form>

@@ -1,63 +1,51 @@
 const express = require("express");
 const authMiddleware = require("../middleware/authMiddleware");
 const Credential = require("../models/Credential");
-const { encrypt, decrypt } = require("../utils/crypto");
 
 const router = express.Router();
 
 // Apply auth middleware to all locker routes
 router.use(authMiddleware);
 
-// GET /api/locker — Fetch all credentials for the logged-in user (decrypted)
+// GET /api/locker — Fetch all credentials for the logged-in user (raw, encrypted by client)
 router.get("/", async (req, res) => {
   try {
     const credentials = await Credential.find({ userId: req.user.id })
       .sort({ updatedAt: -1 });
 
-    const decrypted = credentials.map((cred) => {
-      let plaintextPassword = "";
-      try {
-        plaintextPassword = decrypt(cred.encryptedPassword, cred.iv);
-      } catch (decErr) {
-        console.error(`Failed to decrypt password for ID ${cred._id}:`, decErr.message);
-        plaintextPassword = "[Decryption Failed]";
-      }
+    const result = credentials.map((cred) => ({
+      _id: cred._id,
+      title: cred.title,
+      username: cred.username,
+      encryptedPassword: cred.encryptedPassword,
+      iv: cred.iv,
+      category: cred.category,
+      createdAt: cred.createdAt,
+      updatedAt: cred.updatedAt,
+    }));
 
-      return {
-        _id: cred._id,
-        title: cred.title,
-        username: cred.username,
-        password: plaintextPassword,
-        category: cred.category,
-        createdAt: cred.createdAt,
-        updatedAt: cred.updatedAt,
-      };
-    });
-
-    res.json(decrypted);
+    res.json(result);
   } catch (err) {
     console.error("Fetch locker credentials error:", err.message);
     res.status(500).json({ message: "Failed to fetch locker credentials" });
   }
 });
 
-// POST /api/locker — Save a new credential (encrypted)
+// POST /api/locker — Save a new credential (already encrypted by the client)
 router.post("/", async (req, res) => {
   try {
-    const { title, username, password, category } = req.body;
+    const { title, username, encryptedPassword, iv, category } = req.body;
 
-    if (!title || !password) {
-      return res.status(400).json({ message: "Title and Password/Code are required" });
+    if (!title || !encryptedPassword || !iv) {
+      return res.status(400).json({ message: "Title, encrypted password, and IV are required" });
     }
-
-    const { iv, encryptedText } = encrypt(password);
 
     const credential = await Credential.create({
       userId: req.user.id,
       title: title.trim(),
       username: (username || "").trim(),
-      encryptedPassword: encryptedText,
-      iv: iv,
+      encryptedPassword,
+      iv,
       category: category || "General",
     });
 
@@ -65,7 +53,8 @@ router.post("/", async (req, res) => {
       _id: credential._id,
       title: credential.title,
       username: credential.username,
-      password: password, // Send plaintext password back to client for instant update
+      encryptedPassword: credential.encryptedPassword,
+      iv: credential.iv,
       category: credential.category,
       createdAt: credential.createdAt,
       updatedAt: credential.updatedAt,
@@ -76,10 +65,10 @@ router.post("/", async (req, res) => {
   }
 });
 
-// PUT /api/locker/:id — Update a credential (re-encrypt password if changed)
+// PUT /api/locker/:id — Update a credential (re-encrypted by the client if password changed)
 router.put("/:id", async (req, res) => {
   try {
-    const { title, username, password, category } = req.body;
+    const { title, username, encryptedPassword, iv, category } = req.body;
 
     const credential = await Credential.findOne({
       _id: req.params.id,
@@ -94,18 +83,9 @@ router.put("/:id", async (req, res) => {
     if (username !== undefined) credential.username = username.trim();
     if (category !== undefined) credential.category = category || "General";
 
-    let plaintextPassword = password;
-    if (password !== undefined) {
-      const { iv, encryptedText } = encrypt(password);
-      credential.encryptedPassword = encryptedText;
+    if (encryptedPassword !== undefined && iv !== undefined) {
+      credential.encryptedPassword = encryptedPassword;
       credential.iv = iv;
-    } else {
-      // Decrypt existing password for response
-      try {
-        plaintextPassword = decrypt(credential.encryptedPassword, credential.iv);
-      } catch (decErr) {
-        plaintextPassword = "[Decryption Failed]";
-      }
     }
 
     credential.updatedAt = new Date();
@@ -115,7 +95,8 @@ router.put("/:id", async (req, res) => {
       _id: credential._id,
       title: credential.title,
       username: credential.username,
-      password: plaintextPassword,
+      encryptedPassword: credential.encryptedPassword,
+      iv: credential.iv,
       category: credential.category,
       createdAt: credential.createdAt,
       updatedAt: credential.updatedAt,

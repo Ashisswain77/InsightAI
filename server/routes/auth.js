@@ -3,6 +3,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const { sanitizeString } = require("../middleware/validate");
+const authMiddleware = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
@@ -180,6 +181,53 @@ router.post("/google", async (req, res) => {
   } catch (err) {
     console.error("Google Auth error:", err.message);
     res.status(500).json({ message: "Google authentication failed" });
+  }
+});
+
+// PUT /api/auth/profile
+router.put("/profile", authMiddleware, async (req, res) => {
+  try {
+    const { name, email } = req.body;
+
+    // Type checks
+    if (typeof name !== "string" || typeof email !== "string") {
+      return res.status(400).json({ message: "Invalid input types" });
+    }
+
+    const cleanName = sanitizeString(name, 100);
+    if (!cleanName) {
+      return res.status(400).json({ message: "Name is required (max 100 characters)" });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!cleanEmail || !EMAIL_REGEX.test(cleanEmail)) {
+      return res.status(400).json({ message: "A valid email is required" });
+    }
+
+    // Check if email already in use by another user
+    const existingUser = await User.findOne({ email: cleanEmail, _id: { $ne: req.user.id } });
+    if (existingUser) {
+      return res.status(400).json({ message: "Email is already in use by another account" });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    user.name = cleanName;
+    user.email = cleanEmail;
+    await user.save();
+
+    res.json({
+      id: user._id,
+      name: user.name,
+      email: user.email,
+    });
+  } catch (err) {
+    console.error("Profile update error:", err.message);
+    res.status(500).json({ message: "Server error" });
   }
 });
 

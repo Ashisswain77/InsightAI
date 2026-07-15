@@ -51,6 +51,8 @@ export default function Locker() {
   const [vaultKey, setVaultKey] = useState(null);
   const [masterInput, setMasterInput] = useState("");
   const [confirmInput, setConfirmInput] = useState("");
+  const [hintInput, setHintInput] = useState("");
+  const [vaultHint, setVaultHint] = useState("");
   const [showMasterInput, setShowMasterInput] = useState(false);
   const [gateLoading, setGateLoading] = useState(false);
   const [gateError, setGateError] = useState("");
@@ -67,6 +69,11 @@ export default function Locker() {
   const [editingCred, setEditingCred] = useState(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+
+  // Dialog State for Hint Edit
+  const [editHintOpen, setEditHintOpen] = useState(false);
+  const [newHintInput, setNewHintInput] = useState("");
+  const [savingHint, setSavingHint] = useState(false);
 
   // Form State
   const [formTitle, setFormTitle] = useState("");
@@ -89,6 +96,7 @@ export default function Locker() {
         const { data } = await api.get("/locker");
         const verification = data.find((c) => c.title === VAULT_VERIFICATION_TITLE);
         if (verification) {
+          setVaultHint(verification.username || "");
           // Vault has been set up before — check sessionStorage for cached key
           const cachedPassword = sessionStorage.getItem(SESSION_KEY);
           if (cachedPassword) {
@@ -175,7 +183,7 @@ export default function Locker() {
 
       await api.post("/locker", {
         title: VAULT_VERIFICATION_TITLE,
-        username: "",
+        username: hintInput.trim(),
         encryptedPassword: ciphertext,
         iv,
         category: "General",
@@ -183,6 +191,7 @@ export default function Locker() {
 
       sessionStorage.setItem(SESSION_KEY, masterInput);
       setVaultKey(key);
+      setVaultHint(hintInput.trim());
       setRawCredentials([]);
       setVaultStatus("unlocked");
       setLoading(false);
@@ -191,6 +200,34 @@ export default function Locker() {
       console.error("Vault setup error:", err);
     } finally {
       setGateLoading(false);
+    }
+  };
+
+  const handleOpenEditHint = () => {
+    setNewHintInput(vaultHint);
+    setEditHintOpen(true);
+  };
+
+  const handleSaveHint = async () => {
+    const verification = rawCredentials.find((c) => c.title === VAULT_VERIFICATION_TITLE);
+    if (!verification) return;
+
+    setSavingHint(true);
+    try {
+      const { data } = await api.put(`/locker/${verification._id}`, {
+        username: newHintInput.trim(),
+      });
+      setVaultHint(data.username);
+      // Sync rawCredentials list
+      setRawCredentials((prev) =>
+        prev.map((c) => (c._id === verification._id ? { ...c, username: data.username } : c))
+      );
+      setSnackbar({ open: true, message: "Vault hint updated!", severity: "success" });
+      setEditHintOpen(false);
+    } catch (err) {
+      setSnackbar({ open: true, message: "Failed to update vault hint", severity: "error" });
+    } finally {
+      setSavingHint(false);
     }
   };
 
@@ -554,6 +591,33 @@ export default function Locker() {
                   value={confirmInput}
                   onChange={(e) => setConfirmInput(e.target.value)}
                   sx={{
+                    mb: 2.5,
+                    "& .MuiOutlinedInput-root": {
+                      borderRadius: 3,
+                      bgcolor: (theme) =>
+                        theme.palette.mode === "dark"
+                          ? "rgba(15, 23, 42, 0.25)"
+                          : "rgba(0, 0, 0, 0.015)",
+                      "& fieldset": { borderColor: "divider" },
+                      "&:hover fieldset": { borderColor: "text.secondary" },
+                      "&.Mui-focused fieldset": { borderColor: "#10b981" },
+                    },
+                    "& .MuiInputLabel-root": {
+                      fontWeight: 550,
+                      "&.Mui-focused": { color: "#10b981" },
+                    },
+                  }}
+                />
+              )}
+
+              {isSetup && (
+                <TextField
+                  fullWidth
+                  id="vault-hint"
+                  label="Password Hint / Info (Optional)"
+                  value={hintInput}
+                  onChange={(e) => setHintInput(e.target.value)}
+                  sx={{
                     mb: 3,
                     "& .MuiOutlinedInput-root": {
                       borderRadius: 3,
@@ -571,6 +635,21 @@ export default function Locker() {
                     },
                   }}
                 />
+              )}
+
+              {!isSetup && vaultHint && (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    display: "block",
+                    mb: 2.5,
+                    textAlign: "center",
+                    color: "text.secondary",
+                    fontStyle: "italic",
+                  }}
+                >
+                  💡 Hint: {vaultHint}
+                </Typography>
               )}
 
               <Button
@@ -701,6 +780,7 @@ export default function Locker() {
               <Typography variant="body2" sx={{ color: "text.secondary", fontWeight: 600 }}>
                 Zero-Knowledge E2E Encrypted Vault
               </Typography>
+              {/* Vault hint configuration is managed from the profile dropdown settings */}
             </Box>
           </Box>
 
@@ -1179,6 +1259,8 @@ export default function Locker() {
           </Button>
         </DialogActions>
       </Dialog>
+
+
 
       {/* Snackbar alerts */}
       <Snackbar

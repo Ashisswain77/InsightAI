@@ -4,6 +4,14 @@ const request = require("supertest");
 // Mock environment variables
 process.env.JWT_SECRET = "testsecret123";
 
+// Mock auth middleware to automatically authenticate as "user-123"
+jest.mock("../middleware/authMiddleware", () => {
+  return (req, res, next) => {
+    req.user = { id: "user-123" };
+    next();
+  };
+});
+
 // Import model and mock it
 const User = require("../models/User");
 jest.mock("../models/User");
@@ -22,9 +30,7 @@ describe("Auth Routes Validation and Protection", () => {
 
   describe("POST /api/auth/register", () => {
     it("should register successfully with valid inputs", async () => {
-      // Mock User.findOne to return null (no existing user)
       User.findOne.mockResolvedValue(null);
-      // Mock User.create to return a mock user instance
       User.create.mockResolvedValue({
         _id: "60c72b2f9b1d8e1f5c8b4567",
         name: "Test User",
@@ -81,7 +87,6 @@ describe("Auth Routes Validation and Protection", () => {
     });
 
     it("should prevent NoSQL injection via object payloads", async () => {
-      // Send an object as email/password instead of a string
       const res = await request(app)
         .post("/api/auth/register")
         .send({
@@ -103,6 +108,82 @@ describe("Auth Routes Validation and Protection", () => {
         .send({
           email: { $gt: "" },
           password: "password123",
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toContain("Invalid input types");
+      expect(User.findOne).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("PUT /api/auth/profile", () => {
+    it("should successfully update profile name and email", async () => {
+      User.findOne.mockResolvedValue(null); // No email conflict
+      const mockUserInstance = {
+        _id: "user-123",
+        name: "Old Name",
+        email: "old@example.com",
+        save: jest.fn().mockResolvedValue(true),
+      };
+      User.findById.mockResolvedValue(mockUserInstance);
+
+      const res = await request(app)
+        .put("/api/auth/profile")
+        .send({
+          name: "New Name",
+          email: "new@example.com",
+        });
+
+      expect(res.status).toBe(200);
+      expect(User.findOne).toHaveBeenCalledWith({
+        email: "new@example.com",
+        _id: { $ne: "user-123" },
+      });
+      expect(User.findById).toHaveBeenCalledWith("user-123");
+      expect(mockUserInstance.name).toBe("New Name");
+      expect(mockUserInstance.email).toBe("new@example.com");
+      expect(mockUserInstance.save).toHaveBeenCalled();
+      expect(res.body).toEqual({
+        id: "user-123",
+        name: "New Name",
+        email: "new@example.com",
+      });
+    });
+
+    it("should reject profile update with invalid email format", async () => {
+      const res = await request(app)
+        .put("/api/auth/profile")
+        .send({
+          name: "New Name",
+          email: "invalid-email-format",
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toContain("valid email");
+      expect(User.findById).not.toHaveBeenCalled();
+    });
+
+    it("should reject profile update if email is taken by another account", async () => {
+      User.findOne.mockResolvedValue({ _id: "other-user-999", email: "conflict@example.com" });
+
+      const res = await request(app)
+        .put("/api/auth/profile")
+        .send({
+          name: "New Name",
+          email: "conflict@example.com",
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toContain("already in use");
+      expect(User.findById).not.toHaveBeenCalled();
+    });
+
+    it("should prevent NoSQL injection via object payloads in profile update", async () => {
+      const res = await request(app)
+        .put("/api/auth/profile")
+        .send({
+          name: "New Name",
+          email: { $ne: "" },
         });
 
       expect(res.status).toBe(400);

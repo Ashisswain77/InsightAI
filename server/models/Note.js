@@ -28,6 +28,10 @@ const noteSchema = new mongoose.Schema({
     type: [Number],
     default: [],
   },
+  processingVersion: {
+    type: Number,
+    default: 0,
+  },
   createdAt: {
     type: Date,
     default: Date.now,

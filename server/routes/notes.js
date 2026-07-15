@@ -37,7 +37,7 @@ function cosineSimilarity(a, b) {
 // Otherwise Express matches "search" as an :id parameter
 // ============================================================
 
-// GET /api/notes/search?q=... — Semantic search
+// GET /api/notes/search?q=... — Semantic search (cursor-streamed, constant memory)
 router.get("/search", searchLimiter, async (req, res) => {
   try {
     const { q } = req.query;
@@ -54,25 +54,52 @@ router.get("/search", searchLimiter, async (req, res) => {
     });
     const queryVec = embRes.data[0].embedding;
 
-    // Step 2: Fetch all user notes that have embeddings
-    const notes = await Note.find({
+    // Step 2: Stream through notes one-at-a-time using a cursor
+    // This avoids loading all embeddings into memory at once.
+    const MAX_RESULTS = 5;
+    const topResults = []; // maintained as a sorted array (descending by score)
+
+    const cursor = Note.find({
       userId: req.user.id,
       isArchived: { $ne: true },
       isBinned: { $ne: true },
       embedding: { $exists: true, $not: { $size: 0 } },
-    }).select("title content summary tags embedding createdAt updatedAt");
+    })
+      .select("title content summary tags embedding createdAt updatedAt")
+      .cursor();
 
-    // Step 3: Score each note using cosine similarity
-    const ranked = notes
-      .map((n) => ({
-        ...n.toObject(),
-        score: cosineSimilarity(queryVec, n.embedding),
-      }))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 5)
-      .map(({ embedding, ...rest }) => rest); // Strip raw vector
+    for await (const note of cursor) {
+      const score = cosineSimilarity(queryVec, note.embedding);
 
-    res.json(ranked);
+      // Only consider if better than the worst result in our top-N, or if we have room
+      if (topResults.length < MAX_RESULTS || score > topResults[topResults.length - 1].score) {
+        const entry = {
+          _id: note._id,
+          title: note.title,
+          content: note.content,
+          summary: note.summary,
+          tags: note.tags,
+          createdAt: note.createdAt,
+          updatedAt: note.updatedAt,
+          score,
+        };
+
+        // Insert in sorted position
+        const insertIdx = topResults.findIndex((r) => score > r.score);
+        if (insertIdx === -1) {
+          topResults.push(entry);
+        } else {
+          topResults.splice(insertIdx, 0, entry);
+        }
+
+        // Trim to max size
+        if (topResults.length > MAX_RESULTS) {
+          topResults.pop();
+        }
+      }
+    }
+
+    res.json(topResults);
   } catch (err) {
     console.error("Search error:", err.message);
     res.status(500).json({ message: "Search failed" });

@@ -52,35 +52,40 @@ export default function Navbar() {
           sx={{
             display: "flex",
             alignItems: "center",
-            gap: 1.25,
+            gap: 1.5,
             cursor: "pointer",
           }}
           onClick={() => navigate("/dashboard")}
         >
-          <Box
-            sx={{
-              width: 32,
-              height: 32,
-              borderRadius: "50%",
-              background: "linear-gradient(135deg, #6366f1, #a855f7)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "0 4px 12px rgba(99, 102, 241, 0.3)",
-            }}
-          >
-            <AutoAwesome sx={{ color: "#fff", fontSize: 16 }} />
-          </Box>
+          <svg width="28" height="28" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            {/* Central vertical pill */}
+            <rect x="47" y="32" width="6" height="36" rx="3" fill="#818cf8" />
+            {/* Top radiating pill */}
+            <rect x="47" y="12" width="6" height="14" rx="3" fill="#818cf8" />
+            {/* Bottom radiating pill */}
+            <rect x="47" y="74" width="6" height="14" rx="3" fill="#818cf8" />
+            {/* Left radiating pill */}
+            <rect x="12" y="47" width="14" height="6" rx="3" fill="#818cf8" />
+            {/* Right radiating pill */}
+            <rect x="74" y="47" width="14" height="6" rx="3" fill="#818cf8" />
+            
+            {/* Top-Right radiating pill (rotated 45deg around center 50,50) */}
+            <rect x="47" y="12" width="6" height="14" rx="3" fill="#818cf8" transform="rotate(45 50 50)" />
+            {/* Bottom-Right radiating pill (rotated 135deg around center 50,50) */}
+            <rect x="47" y="12" width="6" height="14" rx="3" fill="#818cf8" transform="rotate(135 50 50)" />
+            {/* Bottom-Left radiating pill (rotated 225deg around center 50,50) */}
+            <rect x="47" y="12" width="6" height="14" rx="3" fill="#818cf8" transform="rotate(225 50 50)" />
+            {/* Top-Left radiating pill (rotated 315deg around center 50,50) */}
+            <rect x="47" y="12" width="6" height="14" rx="3" fill="#818cf8" transform="rotate(315 50 50)" />
+          </svg>
           <Typography
             variant="h6"
             sx={{
-              fontWeight: 800,
-              fontFamily: '"Archivo Black", sans-serif',
-              fontSize: "1.2rem",
-              letterSpacing: "-0.03em",
-              background: "linear-gradient(135deg, #6366f1, #a855f7)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
+              fontWeight: 700,
+              fontFamily: '"Outfit", sans-serif',
+              fontSize: "1.3rem",
+              letterSpacing: "-0.02em",
+              color: "text.primary",
               display: { xs: "none", sm: "block" },
             }}
           >

@@ -4,6 +4,7 @@ const authMiddleware = require("../middleware/authMiddleware");
 const Note = require("../models/Note");
 const openai = require("../utils/openai");
 const processNoteInsights = require("../utils/processNoteInsights");
+const { validateId, sanitizeString } = require("../middleware/validate");
 
 const router = express.Router();
 
@@ -176,15 +177,23 @@ router.post("/", async (req, res) => {
   try {
     const { title, content } = req.body;
 
-    if (!title || !content) {
-      return res
-        .status(400)
-        .json({ message: "Title and content are required" });
+    if (typeof title !== "string" || typeof content !== "string") {
+      return res.status(400).json({ message: "Invalid input types" });
+    }
+
+    const cleanTitle = sanitizeString(title, 200);
+    if (!cleanTitle) {
+      return res.status(400).json({ message: "Title must be between 1 and 200 characters" });
+    }
+
+    const trimmedContent = content.trim();
+    if (trimmedContent.length === 0 || trimmedContent.length > 50000) {
+      return res.status(400).json({ message: "Content must be between 1 and 50,000 characters" });
     }
 
     const note = await Note.create({
-      title: title.trim(),
-      content,
+      title: cleanTitle,
+      content: trimmedContent,
       userId: req.user.id,
     });
 
@@ -200,7 +209,7 @@ router.post("/", async (req, res) => {
 });
 
 // GET /api/notes/:id — Fetch a single note
-router.get("/:id", async (req, res) => {
+router.get("/:id", validateId, async (req, res) => {
   try {
     const note = await Note.findOne({
       _id: req.params.id,
@@ -219,9 +228,9 @@ router.get("/:id", async (req, res) => {
 });
 
 // PUT /api/notes/:id — Update a note
-router.put("/:id", async (req, res) => {
+router.put("/:id", validateId, async (req, res) => {
   try {
-    const { title, content } = req.body;
+    const { title, content, isArchived, isBinned } = req.body;
 
     const note = await Note.findOne({
       _id: req.params.id,
@@ -232,13 +241,45 @@ router.put("/:id", async (req, res) => {
       return res.status(404).json({ message: "Note not found" });
     }
 
-    const contentChanged = content !== undefined && content !== note.content;
-    if (title !== undefined) note.title = title.trim();
-    if (content !== undefined) note.content = content;
-    if (req.body.isArchived !== undefined) note.isArchived = req.body.isArchived;
-    if (req.body.isBinned !== undefined) note.isBinned = req.body.isBinned;
-    note.updatedAt = new Date();
+    let contentChanged = false;
 
+    if (title !== undefined) {
+      const cleanTitle = sanitizeString(title, 200);
+      if (!cleanTitle) {
+        return res.status(400).json({ message: "Title must be between 1 and 200 characters" });
+      }
+      note.title = cleanTitle;
+    }
+
+    if (content !== undefined) {
+      if (typeof content !== "string") {
+        return res.status(400).json({ message: "Content must be a string" });
+      }
+      const trimmedContent = content.trim();
+      if (trimmedContent.length === 0 || trimmedContent.length > 50000) {
+        return res.status(400).json({ message: "Content must be between 1 and 50,000 characters" });
+      }
+      if (trimmedContent !== note.content) {
+        contentChanged = true;
+        note.content = trimmedContent;
+      }
+    }
+
+    if (isArchived !== undefined) {
+      if (typeof isArchived !== "boolean") {
+        return res.status(400).json({ message: "isArchived must be a boolean" });
+      }
+      note.isArchived = isArchived;
+    }
+
+    if (isBinned !== undefined) {
+      if (typeof isBinned !== "boolean") {
+        return res.status(400).json({ message: "isBinned must be a boolean" });
+      }
+      note.isBinned = isBinned;
+    }
+
+    note.updatedAt = new Date();
     await note.save();
 
     // Strip embedding from response
@@ -258,7 +299,7 @@ router.put("/:id", async (req, res) => {
 });
 
 // DELETE /api/notes/:id — Delete a note
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", validateId, async (req, res) => {
   try {
     const note = await Note.findOneAndDelete({
       _id: req.params.id,

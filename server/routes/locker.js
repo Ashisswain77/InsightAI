@@ -1,6 +1,7 @@
 const express = require("express");
 const authMiddleware = require("../middleware/authMiddleware");
 const Credential = require("../models/Credential");
+const { validateId, sanitizeString, isHexString } = require("../middleware/validate");
 
 const router = express.Router();
 
@@ -36,17 +37,40 @@ router.post("/", async (req, res) => {
   try {
     const { title, username, encryptedPassword, iv, category } = req.body;
 
-    if (!title || !encryptedPassword || !iv) {
-      return res.status(400).json({ message: "Title, encrypted password, and IV are required" });
+    // Validate types
+    if (
+      typeof title !== "string" ||
+      typeof encryptedPassword !== "string" ||
+      typeof iv !== "string" ||
+      (username !== undefined && typeof username !== "string") ||
+      (category !== undefined && typeof category !== "string")
+    ) {
+      return res.status(400).json({ message: "Invalid input types" });
     }
+
+    const cleanTitle = sanitizeString(title, 200);
+    if (!cleanTitle) {
+      return res.status(400).json({ message: "Title must be between 1 and 200 characters" });
+    }
+
+    if (!isHexString(encryptedPassword)) {
+      return res.status(400).json({ message: "Invalid encrypted password format (must be hex)" });
+    }
+
+    if (!isHexString(iv)) {
+      return res.status(400).json({ message: "Invalid IV format (must be hex)" });
+    }
+
+    const cleanUsername = username ? username.trim().substring(0, 200) : "";
+    const cleanCategory = category ? sanitizeString(category, 50) || "General" : "General";
 
     const credential = await Credential.create({
       userId: req.user.id,
-      title: title.trim(),
-      username: (username || "").trim(),
+      title: cleanTitle,
+      username: cleanUsername,
       encryptedPassword,
       iv,
-      category: category || "General",
+      category: cleanCategory,
     });
 
     res.status(201).json({
@@ -66,9 +90,20 @@ router.post("/", async (req, res) => {
 });
 
 // PUT /api/locker/:id — Update a credential (re-encrypted by the client if password changed)
-router.put("/:id", async (req, res) => {
+router.put("/:id", validateId, async (req, res) => {
   try {
     const { title, username, encryptedPassword, iv, category } = req.body;
+
+    // Validate input types if provided
+    if (
+      (title !== undefined && typeof title !== "string") ||
+      (username !== undefined && typeof username !== "string") ||
+      (encryptedPassword !== undefined && typeof encryptedPassword !== "string") ||
+      (iv !== undefined && typeof iv !== "string") ||
+      (category !== undefined && typeof category !== "string")
+    ) {
+      return res.status(400).json({ message: "Invalid input types" });
+    }
 
     const credential = await Credential.findOne({
       _id: req.params.id,
@@ -79,11 +114,32 @@ router.put("/:id", async (req, res) => {
       return res.status(404).json({ message: "Credential not found" });
     }
 
-    if (title !== undefined) credential.title = title.trim();
-    if (username !== undefined) credential.username = username.trim();
-    if (category !== undefined) credential.category = category || "General";
+    if (title !== undefined) {
+      const cleanTitle = sanitizeString(title, 200);
+      if (!cleanTitle) {
+        return res.status(400).json({ message: "Title must be between 1 and 200 characters" });
+      }
+      credential.title = cleanTitle;
+    }
 
-    if (encryptedPassword !== undefined && iv !== undefined) {
+    if (username !== undefined) {
+      credential.username = username.trim().substring(0, 200);
+    }
+
+    if (category !== undefined) {
+      credential.category = sanitizeString(category, 50) || "General";
+    }
+
+    if (encryptedPassword !== undefined || iv !== undefined) {
+      if (encryptedPassword === undefined || iv === undefined) {
+        return res.status(400).json({ message: "Both encryptedPassword and iv must be updated together" });
+      }
+      if (!isHexString(encryptedPassword)) {
+        return res.status(400).json({ message: "Invalid encrypted password format (must be hex)" });
+      }
+      if (!isHexString(iv)) {
+        return res.status(400).json({ message: "Invalid IV format (must be hex)" });
+      }
       credential.encryptedPassword = encryptedPassword;
       credential.iv = iv;
     }
@@ -108,7 +164,7 @@ router.put("/:id", async (req, res) => {
 });
 
 // DELETE /api/locker/:id — Delete a credential
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", validateId, async (req, res) => {
   try {
     const credential = await Credential.findOneAndDelete({
       _id: req.params.id,

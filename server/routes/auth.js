@@ -2,27 +2,42 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const { sanitizeString } = require("../middleware/validate");
 
 const router = express.Router();
+
+// Simple email format validation
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // POST /api/auth/register
 router.post("/register", async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    // Validate required fields
-    if (!name || !email || !password) {
-      return res.status(400).json({ message: "All fields are required" });
+    // Type checks — prevent NoSQL injection via objects like { "$gt": "" }
+    if (typeof name !== "string" || typeof email !== "string" || typeof password !== "string") {
+      return res.status(400).json({ message: "Invalid input types" });
     }
 
-    if (password.length < 6) {
+    // Sanitize and validate
+    const cleanName = sanitizeString(name, 100);
+    if (!cleanName) {
+      return res.status(400).json({ message: "Name is required (max 100 characters)" });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    if (!cleanEmail || !EMAIL_REGEX.test(cleanEmail)) {
+      return res.status(400).json({ message: "A valid email is required" });
+    }
+
+    if (password.length < 6 || password.length > 128) {
       return res
         .status(400)
-        .json({ message: "Password must be at least 6 characters" });
+        .json({ message: "Password must be between 6 and 128 characters" });
     }
 
     // Check if user already exists
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    const existingUser = await User.findOne({ email: cleanEmail });
     if (existingUser) {
       return res.status(400).json({ message: "Email already registered" });
     }
@@ -32,8 +47,8 @@ router.post("/register", async (req, res) => {
 
     // Create user
     const user = await User.create({
-      name: name.trim(),
-      email: email.toLowerCase().trim(),
+      name: cleanName,
+      email: cleanEmail,
       password: hashedPassword,
     });
 
@@ -61,14 +76,22 @@ router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    if (!email || !password) {
-      return res
-        .status(400)
-        .json({ message: "Email and password are required" });
+    // Type checks — prevent NoSQL injection
+    if (typeof email !== "string" || typeof password !== "string") {
+      return res.status(400).json({ message: "Invalid input types" });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    if (!cleanEmail || !EMAIL_REGEX.test(cleanEmail)) {
+      return res.status(400).json({ message: "A valid email is required" });
+    }
+
+    if (!password) {
+      return res.status(400).json({ message: "Password is required" });
     }
 
     // Find user
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const user = await User.findOne({ email: cleanEmail });
     if (!user) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
@@ -103,7 +126,7 @@ router.post("/google", async (req, res) => {
   try {
     const { accessToken } = req.body;
 
-    if (!accessToken) {
+    if (typeof accessToken !== "string" || !accessToken.trim()) {
       return res.status(400).json({ message: "Access token is required" });
     }
 
@@ -135,7 +158,7 @@ router.post("/google", async (req, res) => {
 
       // Create new user
       user = await User.create({
-        name: name || email.split("@")[0],
+        name: (name || email.split("@")[0]).substring(0, 100),
         email: email.toLowerCase().trim(),
         password: hashedPassword,
       });
@@ -161,4 +184,3 @@ router.post("/google", async (req, res) => {
 });
 
 module.exports = router;
-
